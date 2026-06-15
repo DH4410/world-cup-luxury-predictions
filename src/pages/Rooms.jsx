@@ -1,14 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, Hash, Users, ArrowRight, Eye, EyeOff, ChevronLeft, Activity, Copy, Check } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { TEAMS, MATCHES } from '../data/mockData';
+import { TEAMS, MATCHES, flagUrl } from '../data/mockData';
 
 function getTeam(id) { return TEAMS.find(t => t.id === id); }
 function getMatch(id) { return MATCHES.find(m => m.id === id); }
 
-function fmtTime(ts) {
-  const d = new Date(ts);
-  const diff = Date.now() - d.getTime();
+function fmtAge(ts) {
+  const diff = Date.now() - new Date(ts).getTime();
   if (diff < 60000) return 'just now';
   if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
   if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
@@ -16,18 +15,16 @@ function fmtTime(ts) {
 }
 
 function RoomDetail({ room, onBack }) {
-  const { session, profile, getRoomPredictions } = useApp();
+  const { session, getRoomPredictions } = useApp();
   const [data, setData] = useState({ members: [], predictions: {} });
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
-  const FEATURED_MATCH_ID = 'm1';
-  const match = getMatch(FEATURED_MATCH_ID);
-  const home = match ? getTeam(match.homeTeam) : null;
-  const away = match ? getTeam(match.awayTeam) : null;
+  const FEATURED = 'm1';
+  const match = getMatch(FEATURED);
+  const homeTeam = match ? getTeam(match.homeTeam) : null;
+  const awayTeam = match ? getTeam(match.awayTeam) : null;
 
-  useEffect(() => {
-    getRoomPredictions(room.id).then(setData);
-  }, [room.id]);
+  useEffect(() => { getRoomPredictions(room.id).then(setData); }, [room.id]);
 
   function copyCode() {
     navigator.clipboard.writeText(room.code);
@@ -35,116 +32,122 @@ function RoomDetail({ room, onBack }) {
     setTimeout(() => setCopied(false), 2000);
   }
 
-  const sortedMembers = [...data.members].sort((a, b) =>
+  const sorted = [...data.members].sort((a, b) =>
     (b.profiles?.total_points || 0) - (a.profiles?.total_points || 0)
   );
-
-  const activity = room.room_activity || [];
+  const activity = (room.room_activity || []).slice(0, 6);
 
   return (
     <div>
-      {/* Header */}
-      <div className="bg-ink-900 border-b-2 border-lime-500 p-6 lg:p-10 mb-8">
-        <button onClick={onBack} className="label-caps text-ink-400 hover:text-lime-500 flex items-center gap-1.5 mb-5 transition-colors">
-          <ChevronLeft size={13} strokeWidth={3} /> All Rooms
+      {/* Room header */}
+      <div style={{ background: 'var(--black)', borderRadius: 'var(--r-xl)', padding: '1.75rem 2rem', marginBottom: '1.5rem' }}>
+        <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Barlow Condensed', fontWeight: 700, fontSize: '0.8rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', display: 'flex', alignItems: 'center', gap: 4, marginBottom: '1rem', padding: 0, transition: 'color 0.15s' }}
+          onMouseEnter={e => e.currentTarget.style.color = 'var(--lime)'}
+          onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.4)'}>
+          <ChevronLeft size={12} strokeWidth={3} /> All Rooms
         </button>
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
-            <p className="label-caps text-lime-500 mb-1">Private Room</p>
-            <h1 className="heading-display text-4xl lg:text-6xl text-white">{room.name}</h1>
+            <p className="caps" style={{ color: 'var(--lime)', marginBottom: '0.35rem' }}>Private Room</p>
+            <h1 className="display" style={{ fontSize: 'clamp(2rem, 6vw, 3.5rem)', color: '#fff' }}>{room.name}</h1>
           </div>
-          <div className="flex items-center gap-2 bg-white/5 border-2 border-white/20 px-4 py-2 self-start">
-            <span className="font-mono font-bold text-white tracking-widest">{room.code}</span>
-            <button onClick={copyCode} className="text-ink-400 hover:text-lime-500 transition-colors ml-1">
-              {copied ? <Check size={14} strokeWidth={2.5} className="text-lime-500" /> : <Copy size={14} strokeWidth={2} />}
-            </button>
-          </div>
+          <button onClick={copyCode} style={{
+            display: 'flex', alignItems: 'center', gap: '0.6rem',
+            background: 'rgba(255,255,255,0.07)', border: '1.5px solid rgba(255,255,255,0.15)',
+            borderRadius: 'var(--r-md)', padding: '0.6rem 1rem', cursor: 'pointer',
+            fontFamily: 'monospace', fontSize: '1rem', fontWeight: 700, letterSpacing: '0.15em', color: '#fff',
+            transition: 'border-color 0.15s',
+          }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--lime)'}
+            onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'}
+          >
+            {room.code}
+            {copied ? <Check size={14} strokeWidth={2.5} style={{ color: 'var(--lime)' }} /> : <Copy size={14} strokeWidth={2} style={{ color: 'rgba(255,255,255,0.4)' }} />}
+          </button>
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,2fr)', gap: '1.25rem' }} className="grid-cols-responsive">
         {/* Standings */}
-        <div>
-          <div className="card overflow-hidden">
-            <div className="bg-ink-900 px-5 py-3">
-              <p className="label-caps text-lime-500">Standings</p>
-            </div>
-            {sortedMembers.length === 0 ? (
-              <div className="p-6 text-center">
-                <p className="font-sans text-sm text-ink-400">Loading members…</p>
-              </div>
-            ) : sortedMembers.map((m, i) => {
-              const p = m.profiles;
-              const isSelf = m.user_id === session?.user?.id;
-              return (
-                <div key={m.user_id} className={`flex items-center justify-between px-5 py-3.5 border-b-2 border-surface-200 last:border-0 ${isSelf ? 'bg-lime-500/10' : ''}`}>
-                  <div className="flex items-center gap-3">
-                    <span className={`heading-display text-xl w-6 text-center ${i === 0 ? 'text-lime-500' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : 'text-ink-400'}`}>
-                      {i + 1}
-                    </span>
-                    <div className={`w-8 h-8 flex items-center justify-center text-xs font-bold font-sans ${isSelf ? 'bg-lime-500 text-ink-900' : 'bg-ink-900 text-white'}`}>
-                      {p?.avatar_initials || '??'}
-                    </div>
-                    <span className={`font-sans text-sm font-bold ${isSelf ? 'text-ink-900' : 'text-ink-800'}`}>
-                      {p?.username || 'Unknown'} {isSelf && <span className="font-normal text-ink-400">(you)</span>}
-                    </span>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-sans font-bold text-sm text-ink-900">{p?.total_points || 0}</p>
-                    <p className="label-caps text-ink-400">pts</p>
-                  </div>
-                </div>
-              );
-            })}
+        <div className="card-flat">
+          <div style={{ padding: '1rem 1.25rem', borderBottom: '1.5px solid var(--surface-3)' }}>
+            <p className="caps" style={{ color: 'var(--grey)' }}>Standings</p>
           </div>
+          {sorted.length === 0 ? (
+            <div style={{ padding: '1.5rem', textAlign: 'center' }}>
+              <p style={{ fontFamily: 'Barlow', fontSize: '0.9rem', color: 'var(--grey-light)' }}>Loading…</p>
+            </div>
+          ) : sorted.map((m, i) => {
+            const p = m.profiles;
+            const isSelf = m.user_id === session?.user?.id;
+            return (
+              <div key={m.user_id} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '0.875rem 1.25rem', borderBottom: '1.5px solid var(--surface-3)',
+                background: isSelf ? 'rgba(200,255,0,0.06)' : 'transparent',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <span className="display" style={{ fontSize: '1.25rem', minWidth: 20, textAlign: 'center', color: i === 0 ? 'var(--lime-dark)' : i === 1 ? 'var(--grey-light)' : i === 2 ? '#CD7F32' : 'var(--grey-light)' }}>{i + 1}</span>
+                  <div style={{ width: 30, height: 30, borderRadius: '50%', background: isSelf ? 'var(--lime)' : 'var(--surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Barlow', fontWeight: 800, fontSize: '0.72rem', color: isSelf ? 'var(--black)' : 'var(--grey)' }}>
+                    {p?.avatar_initials || '?'}
+                  </div>
+                  <p style={{ fontFamily: 'Barlow', fontWeight: 700, fontSize: '0.85rem', color: 'var(--black)' }}>
+                    {p?.username || '?'}{isSelf && <span style={{ color: 'var(--grey-light)', fontWeight: 400 }}> (you)</span>}
+                  </p>
+                </div>
+                <p style={{ fontFamily: 'Barlow', fontWeight: 700, fontSize: '0.9rem', color: 'var(--black)' }}>{p?.total_points || 0}<span className="caps" style={{ color: 'var(--grey-light)', marginLeft: 2 }}>pts</span></p>
+              </div>
+            );
+          })}
         </div>
 
-        {/* Predictions + Activity */}
-        <div className="lg:col-span-2 space-y-5">
+        {/* Right column */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           {/* Prediction comparison */}
-          <div className="card overflow-hidden">
-            <div className="bg-ink-900 px-5 py-3 flex items-center justify-between">
-              <p className="label-caps text-lime-500">
-                Predictions — {home?.name} vs {away?.name}
-              </p>
-              <button
-                onClick={() => setRevealed(v => !v)}
-                className="flex items-center gap-1.5 label-caps text-ink-400 hover:text-lime-500 transition-colors"
+          <div className="card-flat">
+            <div style={{ padding: '1rem 1.25rem', borderBottom: '1.5px solid var(--surface-3)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <p className="caps" style={{ color: 'var(--grey)' }}>Predictions</p>
+                {homeTeam && awayTeam && (
+                  <p style={{ fontFamily: 'Barlow', fontWeight: 700, fontSize: '0.9rem', color: 'var(--black)', marginTop: 2 }}>
+                    {homeTeam.name} vs {awayTeam.name}
+                  </p>
+                )}
+              </div>
+              <button onClick={() => setRevealed(v => !v)} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'var(--surface)', border: '1.5px solid var(--surface-3)', borderRadius: 'var(--r-sm)', padding: '0.4rem 0.8rem', cursor: 'pointer', fontFamily: 'Barlow Condensed', fontWeight: 700, fontSize: '0.75rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--grey)', transition: 'border-color 0.15s' }}
+                onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--black)'}
+                onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--surface-3)'}
               >
                 {revealed ? <EyeOff size={12} strokeWidth={2.5} /> : <Eye size={12} strokeWidth={2.5} />}
                 {revealed ? 'Hide' : 'Reveal'}
               </button>
             </div>
-            <div className="divide-y-2 divide-surface-200">
-              {sortedMembers.length === 0 && (
-                <div className="p-6 text-center font-sans text-sm text-ink-400">Loading…</div>
-              )}
-              {sortedMembers.map(m => {
+            <div>
+              {sorted.length === 0 && <div style={{ padding: '1.5rem', textAlign: 'center' }}><p style={{ fontFamily: 'Barlow', color: 'var(--grey-light)', fontSize: '0.9rem' }}>Loading…</p></div>}
+              {sorted.map(m => {
                 const p = m.profiles;
-                const pred = data.predictions[m.user_id]?.[FEATURED_MATCH_ID];
+                const pred = data.predictions[m.user_id]?.[FEATURED];
                 const isSelf = m.user_id === session?.user?.id;
                 return (
-                  <div key={m.user_id} className={`flex items-center justify-between px-5 py-3.5 ${isSelf ? 'bg-lime-500/5' : ''}`}>
-                    <div className="flex items-center gap-3">
-                      <div className={`w-7 h-7 flex items-center justify-center text-xs font-bold font-sans ${isSelf ? 'bg-lime-500 text-ink-900' : 'bg-ink-900 text-white'}`}>
-                        {p?.avatar_initials || '??'}
-                      </div>
-                      <span className="font-sans text-sm font-medium text-ink-800">{p?.username || 'Unknown'}</span>
+                  <div key={m.user_id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.875rem 1.25rem', borderBottom: '1.5px solid var(--surface-3)', background: isSelf ? 'rgba(200,255,0,0.04)' : 'transparent' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: isSelf ? 'var(--lime)' : 'var(--surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Barlow', fontWeight: 800, fontSize: '0.7rem', color: isSelf ? 'var(--black)' : 'var(--grey)', flexShrink: 0 }}>{p?.avatar_initials || '?'}</div>
+                      <span style={{ fontFamily: 'Barlow', fontWeight: 600, fontSize: '0.85rem', color: 'var(--black)' }}>{p?.username}</span>
                     </div>
                     {pred ? (
                       revealed ? (
-                        <div className="flex items-center gap-4">
-                          <span className="heading-display text-2xl text-ink-900">{pred.home_score}–{pred.away_score}</span>
-                          {pred.scorer && <span className="font-sans text-xs font-medium text-ink-500">⚽ {pred.scorer}</span>}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
+                          <span className="display" style={{ fontSize: '1.5rem' }}>{pred.home_score}–{pred.away_score}</span>
+                          {pred.scorer && <span style={{ fontFamily: 'Barlow', fontSize: '0.8rem', fontWeight: 600, color: 'var(--grey)' }}>⚽ {pred.scorer}</span>}
                         </div>
                       ) : (
-                        <div className="flex items-center gap-2">
-                          <div className="h-4 w-10 bg-ink-900/20" />
-                          <div className="h-4 w-16 bg-ink-900/10" />
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <div style={{ width: 40, height: 14, background: 'var(--surface-2)', borderRadius: 4 }} />
+                          <div style={{ width: 60, height: 14, background: 'var(--surface-2)', borderRadius: 4 }} />
                         </div>
                       )
                     ) : (
-                      <span className="label-caps text-ink-300">Not yet</span>
+                      <span className="caps" style={{ color: 'var(--grey-light)' }}>Not yet</span>
                     )}
                   </div>
                 );
@@ -153,29 +156,27 @@ function RoomDetail({ room, onBack }) {
           </div>
 
           {/* Activity */}
-          <div className="card overflow-hidden">
-            <div className="bg-ink-900 px-5 py-3 flex items-center gap-2">
-              <Activity size={13} strokeWidth={2.5} className="text-lime-500" />
-              <p className="label-caps text-lime-500">Activity</p>
+          <div className="card-flat">
+            <div style={{ padding: '1rem 1.25rem', borderBottom: '1.5px solid var(--surface-3)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <Activity size={13} strokeWidth={2.5} color="var(--grey)" />
+              <p className="caps" style={{ color: 'var(--grey)' }}>Activity</p>
             </div>
             {activity.length === 0 ? (
-              <div className="p-6 text-center font-sans text-sm text-ink-400">No activity yet.</div>
-            ) : (
-              <div className="divide-y-2 divide-surface-200">
-                {activity.slice(0, 8).map((a, i) => (
-                  <div key={i} className="flex items-start gap-3 px-5 py-3.5">
-                    <div className="w-2 h-2 bg-lime-500 rounded-full mt-1.5 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-sans text-sm text-ink-800 leading-relaxed">{a.message}</p>
-                      <p className="label-caps text-ink-300 mt-0.5">{fmtTime(a.created_at)}</p>
-                    </div>
-                  </div>
-                ))}
+              <div style={{ padding: '1.5rem', textAlign: 'center' }}><p style={{ fontFamily: 'Barlow', color: 'var(--grey-light)', fontSize: '0.9rem' }}>No activity yet.</p></div>
+            ) : activity.map((a, i) => (
+              <div key={i} style={{ display: 'flex', gap: '0.75rem', padding: '0.875rem 1.25rem', borderBottom: '1.5px solid var(--surface-3)' }}>
+                <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--lime-dark)', marginTop: 6, flexShrink: 0 }} />
+                <div>
+                  <p style={{ fontFamily: 'Barlow', fontSize: '0.88rem', color: 'var(--black)', lineHeight: 1.5 }}>{a.message}</p>
+                  <p className="caps" style={{ color: 'var(--grey-light)', marginTop: 2 }}>{fmtAge(a.created_at)}</p>
+                </div>
               </div>
-            )}
+            ))}
           </div>
         </div>
       </div>
+
+      <style>{`.grid-cols-responsive { @media (max-width: 768px) { grid-template-columns: 1fr !important; } }`}</style>
     </div>
   );
 }
@@ -183,33 +184,28 @@ function RoomDetail({ room, onBack }) {
 function RoomCard({ room, onSelect }) {
   const members = room.room_members || [];
   return (
-    <button
-      onClick={() => onSelect(room)}
-      className="card card-hover p-6 text-left w-full group"
-    >
-      <div className="flex items-start justify-between mb-4">
+    <button onClick={() => onSelect(room)} className="card" style={{ padding: '1.5rem', textAlign: 'left', width: '100%', border: '1.5px solid var(--surface-3)', cursor: 'pointer', background: 'var(--white)', borderRadius: 'var(--r-lg)' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '0.875rem' }}>
         <div>
-          <p className="label-caps text-ink-400 mb-1">Private Room</p>
-          <h3 className="heading-display text-2xl text-ink-900 leading-tight">{room.name}</h3>
+          <p className="caps" style={{ color: 'var(--grey-light)', marginBottom: '0.25rem' }}>Private Room</p>
+          <h3 className="display" style={{ fontSize: '1.5rem', color: 'var(--black)', lineHeight: 1.1 }}>{room.name}</h3>
         </div>
-        <ArrowRight size={18} strokeWidth={2.5} className="text-ink-300 group-hover:text-lime-600 transition-colors mt-1 flex-shrink-0" />
+        <ArrowRight size={16} strokeWidth={2.5} color="var(--grey-light)" style={{ marginTop: 4, flexShrink: 0 }} />
       </div>
-      <div className="flex items-center gap-4 mb-4">
-        <div className="flex items-center gap-1.5">
-          <Users size={12} strokeWidth={2.5} className="text-ink-400" />
-          <span className="font-sans text-sm font-medium text-ink-600">{members.length} member{members.length !== 1 ? 's' : ''}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <Users size={12} strokeWidth={2.5} color="var(--grey-light)" />
+          <span style={{ fontFamily: 'Barlow', fontSize: '0.85rem', fontWeight: 600, color: 'var(--grey)' }}>{members.length} member{members.length !== 1 ? 's' : ''}</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <Hash size={12} strokeWidth={2.5} className="text-ink-400" />
-          <span className="font-mono text-sm font-bold text-ink-700">{room.code}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <Hash size={12} strokeWidth={2.5} color="var(--grey-light)" />
+          <span style={{ fontFamily: 'monospace', fontSize: '0.82rem', fontWeight: 700, color: 'var(--grey)' }}>{room.code}</span>
         </div>
       </div>
-      <div className="flex -space-x-2">
-        {members.slice(0, 6).map((m, i) => (
-          <div key={i} className="w-7 h-7 bg-ink-900 border-2 border-white flex items-center justify-center">
-            <span className="text-white text-xs font-bold font-sans">
-              {m.profiles?.avatar_initials || '?'}
-            </span>
+      <div style={{ display: 'flex', gap: -6 }}>
+        {members.slice(0, 5).map((m, i) => (
+          <div key={i} style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--surface-2)', border: '2px solid var(--white)', marginLeft: i > 0 ? -6 : 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Barlow', fontWeight: 800, fontSize: '0.68rem', color: 'var(--grey)', zIndex: 5 - i }}>
+            {m.profiles?.avatar_initials || '?'}
           </div>
         ))}
       </div>
@@ -248,87 +244,69 @@ export default function Rooms() {
   }
 
   if (selected) {
-    // refresh selected room from list
     const fresh = rooms.find(r => r.id === selected.id) || selected;
     return (
-      <main className="max-w-7xl mx-auto px-4 lg:px-10 py-10">
+      <main style={{ maxWidth: 1200, margin: '0 auto', padding: '2.5rem 1.25rem 4rem' }}>
         <RoomDetail room={fresh} onBack={() => setSelected(null)} />
       </main>
     );
   }
 
   return (
-    <main className="max-w-7xl mx-auto px-4 lg:px-10 py-10">
-      <div className="mb-8">
-        <p className="label-caps text-ink-400 mb-1">Social Competition</p>
-        <h1 className="heading-display text-5xl lg:text-7xl">Rooms</h1>
+    <main style={{ maxWidth: 1200, margin: '0 auto', padding: '2.5rem 1.25rem 4rem' }}>
+      <div style={{ marginBottom: '2rem' }}>
+        <p className="caps" style={{ color: 'var(--grey-light)', marginBottom: '0.25rem' }}>Compete with friends</p>
+        <h1 className="display" style={{ fontSize: 'clamp(2.5rem, 7vw, 5rem)', lineHeight: 0.95 }}>Rooms</h1>
       </div>
 
       {/* Actions */}
       {session ? (
-        <div className="flex flex-wrap gap-3 mb-8">
-          <button onClick={() => setMode(mode === 'create' ? null : 'create')} className="btn-ink">
-            <Plus size={15} strokeWidth={2.5} /> New Room
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.5rem' }}>
+          <button onClick={() => setMode(mode === 'create' ? null : 'create')} className="btn btn-dark">
+            <Plus size={14} strokeWidth={2.5} /> New Room
           </button>
-          <button onClick={() => setMode(mode === 'join' ? null : 'join')} className="btn-ghost">
-            <Hash size={15} strokeWidth={2.5} /> Join with Code
+          <button onClick={() => setMode(mode === 'join' ? null : 'join')} className="btn btn-outline">
+            <Hash size={14} strokeWidth={2.5} /> Join with Code
           </button>
         </div>
       ) : (
-        <div className="card p-5 mb-8 flex items-center gap-4 border-lime-500">
-          <p className="font-sans text-sm font-medium">Sign in to create or join prediction rooms.</p>
+        <div style={{ padding: '1rem 1.25rem', background: 'rgba(200,255,0,0.08)', border: '1.5px solid var(--lime-dark)', borderRadius: 'var(--r-md)', marginBottom: '1.5rem' }}>
+          <p style={{ fontFamily: 'Barlow', fontSize: '0.9rem', fontWeight: 600, color: 'var(--black)' }}>Sign in to create or join prediction rooms.</p>
         </div>
       )}
 
-      {/* Create form */}
       {mode === 'create' && (
-        <div className="card p-6 mb-6 border-ink-900">
-          <p className="label-caps text-ink-600 mb-4">Room Name</p>
-          <div className="flex gap-3 flex-wrap">
-            <input
-              type="text" value={roomName}
-              onChange={e => setRoomName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleCreate()}
-              placeholder="e.g. The Office Champions"
-              className="flex-1 min-w-56 border-2 border-ink-900 bg-surface-100 px-4 py-2.5 font-sans text-sm outline-none focus:bg-lime-500/10 transition-colors"
-            />
-            <button onClick={handleCreate} className="btn-primary">Create <ArrowRight size={14} /></button>
+        <div className="card-flat anim-scale-in" style={{ padding: '1.5rem', marginBottom: '1.25rem' }}>
+          <p className="caps" style={{ color: 'var(--grey)', marginBottom: '0.875rem' }}>New Room Name</p>
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <input type="text" className="input" value={roomName} onChange={e => setRoomName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleCreate()} placeholder="e.g. Office Champions" style={{ flex: 1, minWidth: 220 }} />
+            <button onClick={handleCreate} className="btn btn-lime">Create <ArrowRight size={14} /></button>
           </div>
         </div>
       )}
 
-      {/* Join form */}
       {mode === 'join' && (
-        <div className="card p-6 mb-6 border-ink-900">
-          <p className="label-caps text-ink-600 mb-4">Enter Room Code</p>
-          <div className="flex gap-3 flex-wrap">
-            <input
-              type="text" value={joinCode}
-              onChange={e => setJoinCode(e.target.value.toUpperCase())}
-              onKeyDown={e => e.key === 'Enter' && handleJoin()}
-              placeholder="ABCD-1234"
-              className="flex-1 min-w-56 border-2 border-ink-900 bg-surface-100 px-4 py-2.5 font-mono text-sm font-bold tracking-widest outline-none focus:bg-lime-500/10 transition-colors"
-            />
-            <button onClick={handleJoin} className="btn-primary">Join <ArrowRight size={14} /></button>
+        <div className="card-flat anim-scale-in" style={{ padding: '1.5rem', marginBottom: '1.25rem' }}>
+          <p className="caps" style={{ color: 'var(--grey)', marginBottom: '0.875rem' }}>Enter Room Code</p>
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <input type="text" className="input" value={joinCode} onChange={e => setJoinCode(e.target.value.toUpperCase())} onKeyDown={e => e.key === 'Enter' && handleJoin()} placeholder="ABCD-1234" style={{ flex: 1, minWidth: 220, fontFamily: 'monospace', letterSpacing: '0.1em', fontWeight: 700 }} />
+            <button onClick={handleJoin} className="btn btn-lime">Join <ArrowRight size={14} /></button>
           </div>
         </div>
       )}
 
-      {/* Room grid */}
       {loading ? (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="card p-6 h-36 animate-pulse bg-surface-200 border-surface-300" />
-          ))}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1rem' }}>
+          {[1, 2, 3].map(i => <div key={i} style={{ height: 160, background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', animation: 'pulse 1.5s ease infinite' }} />)}
         </div>
       ) : rooms.length > 0 ? (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1rem' }}>
           {rooms.map(r => <RoomCard key={r.id} room={r} onSelect={setSelected} />)}
         </div>
       ) : (
-        <div className="card p-16 text-center border-dashed border-ink-300">
-          <p className="heading-display text-3xl text-ink-400 mb-2">No rooms yet</p>
-          <p className="font-sans text-sm text-ink-400">
+        <div style={{ padding: '4rem 1.25rem', textAlign: 'center', border: '1.5px dashed var(--surface-3)', borderRadius: 'var(--r-xl)' }}>
+          <p className="display" style={{ fontSize: '2rem', color: 'var(--grey-light)', marginBottom: '0.5rem' }}>No rooms yet</p>
+          <p style={{ fontFamily: 'Barlow', fontSize: '0.9rem', color: 'var(--grey-light)' }}>
             {session ? 'Create your first room above.' : 'Sign in to create or join rooms.'}
           </p>
         </div>

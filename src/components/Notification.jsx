@@ -5,15 +5,17 @@ export default function Notification() {
   if (!notification) return null;
 
   const styles = {
-    success: 'border-l-4 border-ink-900 bg-white text-ink-900',
-    lime: 'border-l-4 border-lime-500 bg-lime-500 text-ink-900',
-    error: 'border-l-4 border-red-500 bg-white text-red-700',
-    info: 'border-l-4 border-ink-400 bg-white text-ink-600',
+    success: { bg: '#fff', border: '1.5px solid var(--surface-3)', borderLeft: '4px solid var(--black)', color: 'var(--black)' },
+    lime:    { bg: 'var(--lime)', border: '1.5px solid var(--lime-dark)', borderLeft: '4px solid var(--lime-dark)', color: 'var(--black)' },
+    error:   { bg: '#fff', border: '1.5px solid #f3b3b3', borderLeft: '4px solid #e53e3e', color: '#c53030' },
+    info:    { bg: '#fff', border: '1.5px solid var(--surface-3)', borderLeft: '4px solid var(--grey-light)', color: 'var(--grey)' },
   };
 
+  const s = styles[notification.type] || styles.info;
+
   return (
-    <div className="fixed bottom-5 right-5 z-50">
-      <div className={`px-5 py-3 shadow-xl max-w-xs font-sans text-sm font-semibold ${styles[notification.type] || styles.info}`}>
+    <div style={{ position: 'fixed', bottom: '1.25rem', right: '1.25rem', zIndex: 60, animation: 'fadeUp 0.3s ease both' }}>
+      <div style={{ ...s, background: s.bg, padding: '0.875rem 1.25rem', borderRadius: 'var(--r-md)', boxShadow: 'var(--shadow-lg)', maxWidth: 320, fontFamily: 'Barlow', fontSize: '0.9rem', fontWeight: 600 }}>
         {notification.message}
       </div>
     </div>

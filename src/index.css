@@ -2,252 +2,171 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── CSS Variables ───────────────────────────────────── */
+/* ── Design tokens ───────────────────────────────────── */
 :root {
-  --ink:        #0F0F0F;
-  --ink-mid:    #3D3D3D;
-  --ink-soft:   #777777;
-  --lime:       #CAFF03;
-  --lime-dark:  #A8D400;
-  --pitch:      #0D1F0D;
-  --surface:    #F0F0EE;
-  --surface-2:  #E4E4E1;
-  --white:      #FFFFFF;
-  --radius-sm:  6px;
-  --radius-md:  10px;
-  --radius-lg:  16px;
-  --radius-xl:  22px;
-  --shadow-sm:  0 2px 8px rgba(0,0,0,0.08);
-  --shadow-md:  0 6px 24px rgba(0,0,0,0.12);
-  --shadow-lg:  0 12px 40px rgba(0,0,0,0.18);
-  --transition: 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  --black:       #111111;
+  --black-2:     #222222;
+  --grey:        #555555;
+  --grey-light:  #AAAAAA;
+  --lime:        #C8FF00;
+  --lime-dark:   #A6D400;
+  --lime-faint:  rgba(200,255,0,0.12);
+  --white:       #FFFFFF;
+  --surface:     #F5F4F1;
+  --surface-2:   #E8E8E5;
+  --surface-3:   #DEDEDB;
+
+  --r-sm:  6px;
+  --r-md:  12px;
+  --r-lg:  18px;
+  --r-xl:  26px;
+  --r-full: 999px;
+
+  --shadow-sm: 0 1px 4px rgba(0,0,0,0.07), 0 2px 8px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.10), 0 8px 24px rgba(0,0,0,0.07);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.14), 0 16px 48px rgba(0,0,0,0.08);
+
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --t:    0.2s;
 }
 
 @layer base {
-  *, *::before, *::after { box-sizing: border-box; }
-  html { font-size: 16px; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 16px; -webkit-font-smoothing: antialiased; }
   body {
     background: var(--surface);
-    color: var(--ink);
+    color: var(--black);
     font-family: 'Barlow', system-ui, sans-serif;
-    font-weight: 400;
     line-height: 1.5;
-    margin: 0;
   }
   #root { min-height: 100vh; display: flex; flex-direction: column; }
+  a { text-decoration: none; color: inherit; }
+  button { font-family: inherit; }
+  img { display: block; }
 }
 
-/* ── Keyframes ──────────────────────────────────────── */
+/* ── Animations ──────────────────────────────────────── */
 @keyframes fadeUp {
-  from { opacity: 0; transform: translateY(20px); }
+  from { opacity: 0; transform: translateY(18px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 @keyframes fadeIn {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
-@keyframes shimmer {
-  0%   { background-position: -200% center; }
-  100% { background-position: 200% center; }
-}
-@keyframes pulseGlow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(202,255,3,0.4); }
-  50%       { box-shadow: 0 0 0 8px rgba(202,255,3,0); }
-}
-@keyframes slideInRight {
-  from { opacity: 0; transform: translateX(30px); }
-  to   { opacity: 1; transform: translateX(0); }
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
 }
 
-.animate-fade-up   { animation: fadeUp 0.5s var(--transition) both; }
-.animate-fade-in   { animation: fadeIn 0.4s ease both; }
-.animate-slide-right { animation: slideInRight 0.45s var(--transition) both; }
-.animate-delay-100 { animation-delay: 0.1s; }
-.animate-delay-200 { animation-delay: 0.2s; }
-.animate-delay-300 { animation-delay: 0.3s; }
+.anim-fade-up    { animation: fadeUp 0.45s var(--ease) both; }
+.anim-fade-in    { animation: fadeIn 0.3s ease both; }
+.anim-scale-in   { animation: scaleIn 0.35s var(--ease) both; }
+.anim-d1 { animation-delay: 0.08s; }
+.anim-d2 { animation-delay: 0.16s; }
+.anim-d3 { animation-delay: 0.24s; }
+.anim-d4 { animation-delay: 0.32s; }
 
-@layer components {
-  /* ── Typography ───────────────────────────────────── */
-  .heading-display {
-    font-family: 'Bebas Neue', Impact, sans-serif;
-    font-weight: 400;
-    letter-spacing: 0.02em;
-    line-height: 0.95;
-    text-transform: uppercase;
-  }
-  .label-caps {
-    font-family: 'Barlow Condensed', 'Barlow', sans-serif;
-    font-weight: 700;
-    font-size: 0.7rem;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-  }
+/* ── Typography ──────────────────────────────────────── */
+.display {
+  font-family: 'Bebas Neue', Impact, sans-serif;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  line-height: 0.93;
+}
+.caps {
+  font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+  font-weight: 700;
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
 
-  /* ── Buttons ──────────────────────────────────────── */
-  .btn-primary {
-    display: inline-flex; align-items: center; gap: 0.5rem;
-    padding: 0.65rem 1.6rem;
-    background: var(--lime); color: var(--ink);
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 0.85rem; font-weight: 700;
-    letter-spacing: 0.1em; text-transform: uppercase;
-    border: 2px solid var(--lime);
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    transition: background var(--transition), transform var(--transition), box-shadow var(--transition);
-    text-decoration: none; white-space: nowrap;
-  }
-  .btn-primary:hover {
-    background: var(--lime-dark);
-    border-color: var(--lime-dark);
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-sm);
-  }
-  .btn-primary:active { transform: translateY(0); }
+/* ── Buttons ─────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 0.88rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 0.65rem 1.5rem;
+  border-radius: var(--r-md);
+  border: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--t) var(--ease), color var(--t), border-color var(--t), transform var(--t), box-shadow var(--t);
+  text-decoration: none;
+}
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
 
-  .btn-ink {
-    display: inline-flex; align-items: center; gap: 0.5rem;
-    padding: 0.65rem 1.6rem;
-    background: var(--ink); color: #fff;
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 0.85rem; font-weight: 700;
-    letter-spacing: 0.1em; text-transform: uppercase;
-    border: 2px solid var(--ink);
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    transition: background var(--transition), transform var(--transition), box-shadow var(--transition);
-    text-decoration: none; white-space: nowrap;
-  }
-  .btn-ink:hover { background: #2a2a2a; transform: translateY(-1px); box-shadow: var(--shadow-sm); }
-  .btn-ink:active { transform: translateY(0); }
+.btn-lime  { background: var(--lime);  color: var(--black); border-color: var(--lime); }
+.btn-lime:hover  { background: var(--lime-dark); border-color: var(--lime-dark); box-shadow: 0 4px 16px rgba(200,255,0,0.3); }
 
-  .btn-ghost {
-    display: inline-flex; align-items: center; gap: 0.5rem;
-    padding: 0.65rem 1.6rem;
-    background: transparent; color: var(--ink);
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 0.85rem; font-weight: 700;
-    letter-spacing: 0.1em; text-transform: uppercase;
-    border: 2px solid var(--ink);
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    transition: background var(--transition), color var(--transition), transform var(--transition);
-    text-decoration: none; white-space: nowrap;
-  }
-  .btn-ghost:hover { background: var(--ink); color: #fff; transform: translateY(-1px); }
-  .btn-ghost:active { transform: translateY(0); }
+.btn-dark  { background: var(--black); color: var(--white); border-color: var(--black); }
+.btn-dark:hover  { background: var(--black-2); box-shadow: var(--shadow-md); }
 
-  .btn-ghost-light {
-    display: inline-flex; align-items: center; gap: 0.5rem;
-    padding: 0.65rem 1.6rem;
-    background: rgba(255,255,255,0.1); color: #fff;
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 0.85rem; font-weight: 700;
-    letter-spacing: 0.1em; text-transform: uppercase;
-    border: 2px solid rgba(255,255,255,0.3);
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    backdrop-filter: blur(4px);
-    transition: background var(--transition), border-color var(--transition), transform var(--transition);
-    text-decoration: none; white-space: nowrap;
-  }
-  .btn-ghost-light:hover {
-    background: rgba(202,255,3,0.15);
-    border-color: var(--lime);
-    color: var(--lime);
-    transform: translateY(-1px);
-  }
-  .btn-ghost-light:active { transform: translateY(0); }
+.btn-outline { background: transparent; color: var(--black); border-color: var(--black); }
+.btn-outline:hover { background: var(--black); color: var(--white); }
 
-  /* ── Cards ────────────────────────────────────────── */
-  .card {
-    background: var(--white);
-    border: 2px solid var(--ink);
-    border-radius: var(--radius-lg);
-    overflow: hidden;
-  }
-  .card-hover {
-    transition: transform var(--transition), box-shadow var(--transition);
-  }
-  .card-hover:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--shadow-md);
-  }
+.btn-outline-light { background: rgba(255,255,255,0.08); color: var(--white); border-color: rgba(255,255,255,0.3); }
+.btn-outline-light:hover { border-color: var(--lime); color: var(--lime); background: rgba(200,255,0,0.08); }
 
-  /* ── Inputs ───────────────────────────────────────── */
-  .score-input {
-    width: 3.5rem; height: 3.5rem;
-    text-align: center;
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 2rem;
-    color: var(--ink);
-    background: var(--surface);
-    border: 2px solid var(--ink);
-    border-radius: var(--radius-sm);
-    outline: none;
-    transition: background var(--transition), border-color var(--transition);
-    -moz-appearance: textfield;
-  }
-  .score-input::-webkit-outer-spin-button,
-  .score-input::-webkit-inner-spin-button { -webkit-appearance: none; }
-  .score-input:focus { background: var(--lime); border-color: var(--lime-dark); }
+/* ── Cards ───────────────────────────────────────────── */
+.card {
+  background: var(--white);
+  border: 1.5px solid var(--surface-3);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  transition: transform var(--t) var(--ease), box-shadow var(--t) var(--ease);
+}
+.card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.card-flat { background: var(--white); border: 1.5px solid var(--surface-3); border-radius: var(--r-lg); overflow: hidden; }
 
-  /* ── Selection states ─────────────────────────────── */
-  .sel-lime {
-    border-color: var(--lime-dark) !important;
-    background: var(--lime) !important;
-    color: var(--ink) !important;
-  }
-  .sel-ink {
-    border-color: var(--ink) !important;
-    background: var(--ink) !important;
-    color: #fff !important;
-  }
+/* ── Inputs ──────────────────────────────────────────── */
+.input {
+  background: var(--surface);
+  border: 1.5px solid var(--surface-3);
+  border-radius: var(--r-sm);
+  padding: 0.65rem 0.9rem;
+  font-family: 'Barlow', sans-serif;
+  font-size: 0.9rem; color: var(--black);
+  outline: none; width: 100%;
+  transition: border-color var(--t), background var(--t);
+}
+.input:focus { border-color: var(--lime-dark); background: var(--white); }
 
-  /* ── Badges ───────────────────────────────────────── */
-  .badge-lime {
-    display: inline-block;
-    padding: 0.2rem 0.65rem;
-    background: var(--lime); color: var(--ink);
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 0.68rem; font-weight: 700;
-    letter-spacing: 0.1em; text-transform: uppercase;
-    border-radius: var(--radius-sm);
-  }
-  .badge-ink {
-    display: inline-block;
-    padding: 0.2rem 0.65rem;
-    background: var(--ink); color: #fff;
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 0.68rem; font-weight: 700;
-    letter-spacing: 0.1em; text-transform: uppercase;
-    border-radius: var(--radius-sm);
-  }
+.score-box {
+  width: 3.25rem; height: 3.25rem;
+  text-align: center;
+  font-family: 'Bebas Neue', sans-serif; font-size: 1.9rem;
+  color: var(--black); background: var(--surface);
+  border: 2px solid var(--surface-3);
+  border-radius: var(--r-sm);
+  outline: none;
+  transition: border-color var(--t), background var(--t);
+  -moz-appearance: textfield;
+}
+.score-box::-webkit-inner-spin-button, .score-box::-webkit-outer-spin-button { -webkit-appearance: none; }
+.score-box:focus { border-color: var(--lime-dark); background: var(--lime); }
 
-  /* ── Nav link ─────────────────────────────────────── */
-  .nav-link {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 0.85rem; font-weight: 700;
-    letter-spacing: 0.1em; text-transform: uppercase;
-    text-decoration: none; transition: color var(--transition);
-    border-radius: var(--radius-sm);
-  }
+/* ── Badges ──────────────────────────────────────────── */
+.badge {
+  display: inline-flex; align-items: center;
+  padding: 0.15rem 0.6rem;
+  border-radius: var(--r-full);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+}
+.badge-lime { background: var(--lime); color: var(--black); }
+.badge-dark { background: var(--black); color: var(--white); }
+.badge-grey { background: var(--surface-2); color: var(--grey); }
 
-  /* ── Rank colors ──────────────────────────────────── */
-  .rank-1 { color: var(--lime-dark); }
-  .rank-2 { color: #AAAAAA; }
-  .rank-3 { color: #CD7F32; }
+/* ── Divider ─────────────────────────────────────────── */
+.divider { border: none; border-top: 1.5px solid var(--surface-3); }
 
-  /* ── Dividers ─────────────────────────────────────── */
-  .divider { border: none; border-top: 2px solid var(--ink); }
-  .divider-light { border: none; border-top: 1px solid var(--surface-2); }
-
-  /* ── Glass effect ─────────────────────────────────── */
-  .glass {
-    background: rgba(255,255,255,0.08);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255,255,255,0.15);
-    border-radius: var(--radius-lg);
-  }
+/* ── Flag image ──────────────────────────────────────── */
+.flag-img {
+  border-radius: var(--r-sm);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  object-fit: cover;
 }

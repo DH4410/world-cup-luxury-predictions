@@ -1,19 +1,28 @@
 import { Link } from 'react-router-dom';
+import { Zap } from 'lucide-react';
 
 export default function Footer() {
   return (
-    <footer style={{ background: '#0D1F0D', borderTop: '3px solid var(--lime)', marginTop: 'auto' }}>
-      <div className="max-w-7xl mx-auto px-4 lg:px-10 py-8" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
-        <span className="heading-display" style={{ fontSize: '1.75rem', color: '#fff' }}>⚽ Prediction Room</span>
-        <nav style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem' }}>
-          {[['/', 'Home'], ['/predict', 'Predict'], ['/rooms', 'Rooms'], ['/leaderboard', 'Leaderboard']].map(([to, label]) => (
-            <Link key={to} to={to} className="nav-link" style={{ color: 'rgba(255,255,255,0.45)', textDecoration: 'none', transition: 'color 0.2s' }}
-              onMouseEnter={e => e.currentTarget.style.color = 'var(--lime)'}
-              onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.45)'}
+    <footer style={{ background: 'var(--black)', marginTop: 'auto' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '2rem 1.25rem', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '1.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div style={{ width: 26, height: 26, background: 'var(--lime)', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Zap size={14} fill="var(--black)" color="var(--black)" strokeWidth={0} />
+          </div>
+          <span className="display" style={{ fontSize: '1.4rem', color: '#fff', letterSpacing: '0.04em' }}>Matchday</span>
+        </div>
+        <nav style={{ display: 'flex', flexWrap: 'wrap', gap: '1.25rem' }}>
+          {[['/', 'Home'], ['/predict', 'Predict'], ['/rooms', 'Rooms'], ['/leaderboard', 'Rankings']].map(([to, label]) => (
+            <Link key={to} to={to}
+              style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '0.85rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', transition: 'color 0.15s' }}
+              onMouseEnter={e => e.currentTarget.style.color = '#fff'}
+              onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.4)'}
             >{label}</Link>
           ))}
         </nav>
-        <p className="label-caps" style={{ color: 'rgba(255,255,255,0.25)' }}>FIFA World Cup 2026</p>
+        <p style={{ fontFamily: 'Barlow', fontSize: '0.8rem', color: 'rgba(255,255,255,0.25)' }}>
+          For fun only · FIFA World Cup 2026
+        </p>
       </div>
     </footer>
   );

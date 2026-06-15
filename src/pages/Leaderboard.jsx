@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { TrendingUp, Users } from 'lucide-react';
+import { TrendingUp, Users, ArrowRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 
 export default function Leaderboard() {
@@ -12,115 +13,112 @@ export default function Leaderboard() {
   useEffect(() => {
     setLoading(true);
     Promise.all([getLeaderboard(), getRooms()]).then(([lb, rms]) => {
-      setLeaders(lb);
-      setRooms(rms);
-      setLoading(false);
+      setLeaders(lb); setRooms(rms); setLoading(false);
     });
   }, [session]);
 
   const myRank = leaders.findIndex(u => u.id === session?.user?.id) + 1;
 
+  const TABS = [
+    { val: 'global', label: 'Global', icon: TrendingUp },
+    { val: 'rooms',  label: 'My Rooms', icon: Users },
+  ];
+
   return (
-    <main className="max-w-7xl mx-auto px-4 lg:px-10 py-10">
-      {/* Page heading */}
-      <div className="mb-8">
-        <p className="label-caps text-ink-400 mb-1">World Cup 2026</p>
-        <h1 className="heading-display text-5xl lg:text-7xl">Leaderboard</h1>
+    <main style={{ maxWidth: 1200, margin: '0 auto', padding: '2.5rem 1.25rem 4rem' }}>
+      <div style={{ marginBottom: '2rem' }}>
+        <p className="caps" style={{ color: 'var(--grey-light)', marginBottom: '0.25rem' }}>World Cup 2026</p>
+        <h1 className="display" style={{ fontSize: 'clamp(2.5rem, 7vw, 5rem)', lineHeight: 0.95 }}>Rankings</h1>
       </div>
 
-      {/* My stats card */}
+      {/* My stats */}
       {session && profile && (
-        <div className="card border-lime-500 mb-8 overflow-hidden">
-          <div className="bg-lime-500 px-6 py-2">
-            <p className="label-caps text-ink-900">Your Standing</p>
+        <div className="anim-fade-up" style={{ background: 'var(--black)', borderRadius: 'var(--r-xl)', overflow: 'hidden', marginBottom: '2rem' }}>
+          <div style={{ padding: '0.6rem 1.5rem', background: 'var(--lime)' }}>
+            <p className="caps" style={{ color: 'var(--black)' }}>Your Stats</p>
           </div>
-          <div className="grid grid-cols-3 divide-x-2 divide-ink-900 border-t-0">
-            <div className="px-6 py-5">
-              <p className="heading-display text-5xl text-ink-900">#{myRank || '–'}</p>
-              <p className="label-caps text-ink-400 mt-1">Global Rank</p>
-            </div>
-            <div className="px-6 py-5">
-              <p className="heading-display text-5xl text-ink-900">{profile.total_points}</p>
-              <p className="label-caps text-ink-400 mt-1">Total Points</p>
-            </div>
-            <div className="px-6 py-5">
-              <p className="heading-display text-5xl text-ink-900">{profile.exact_scores}</p>
-              <p className="label-caps text-ink-400 mt-1">Exact Scores</p>
-            </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 0 }}>
+            {[
+              { val: myRank ? `#${myRank}` : '–', label: 'Global Rank' },
+              { val: profile.total_points, label: 'Total Points' },
+              { val: profile.exact_scores, label: 'Exact Scores' },
+            ].map((s, i) => (
+              <div key={s.label} style={{ padding: '1.25rem 1.5rem', borderRight: i < 2 ? '1px solid rgba(255,255,255,0.08)' : 'none' }}>
+                <p className="display" style={{ fontSize: 'clamp(2rem, 5vw, 3rem)', color: '#fff', marginBottom: '0.15rem' }}>{s.val}</p>
+                <p className="caps" style={{ color: 'rgba(255,255,255,0.4)' }}>{s.label}</p>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
       {/* Tabs */}
-      <div className="flex border-2 border-ink-900 w-fit mb-6">
-        <button
-          onClick={() => setTab('global')}
-          className={`flex items-center gap-2 px-6 py-2.5 label-caps border-r-2 border-ink-900 transition-colors ${tab === 'global' ? 'bg-ink-900 text-white' : 'bg-white text-ink-400 hover:text-ink-900'}`}
-        >
-          <TrendingUp size={12} strokeWidth={2.5} /> Global
-        </button>
-        <button
-          onClick={() => setTab('rooms')}
-          className={`flex items-center gap-2 px-6 py-2.5 label-caps transition-colors ${tab === 'rooms' ? 'bg-ink-900 text-white' : 'bg-white text-ink-400 hover:text-ink-900'}`}
-        >
-          <Users size={12} strokeWidth={2.5} /> My Rooms
-        </button>
+      <div style={{ display: 'flex', gap: 0, background: 'var(--white)', borderRadius: 'var(--r-md)', border: '1.5px solid var(--surface-3)', overflow: 'hidden', width: 'fit-content', marginBottom: '1.5rem' }}>
+        {TABS.map((t, i) => {
+          const Icon = t.icon;
+          return (
+            <button key={t.val} onClick={() => setTab(t.val)} className="caps"
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.4rem',
+                padding: '0.6rem 1.25rem',
+                background: tab === t.val ? 'var(--black)' : 'transparent',
+                color: tab === t.val ? '#fff' : 'var(--grey-light)',
+                border: 'none', borderRight: i === 0 ? '1.5px solid var(--surface-3)' : 'none',
+                cursor: 'pointer', transition: 'background 0.15s, color 0.15s',
+              }}
+            >
+              <Icon size={11} strokeWidth={2.5} /> {t.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Global table */}
       {tab === 'global' && (
-        <div className="card overflow-hidden">
+        <div className="card-flat">
           {/* Header */}
-          <div className="grid grid-cols-12 gap-2 px-5 py-3 bg-ink-900">
-            <div className="col-span-1"><p className="label-caps text-ink-400">#</p></div>
-            <div className="col-span-5"><p className="label-caps text-ink-400">Player</p></div>
-            <div className="col-span-2 text-right hidden sm:block"><p className="label-caps text-ink-400">Exact</p></div>
-            <div className="col-span-2 text-right hidden sm:block"><p className="label-caps text-ink-400">Results</p></div>
-            <div className="col-span-2 sm:col-span-2 text-right"><p className="label-caps text-ink-400">Points</p></div>
+          <div style={{ display: 'grid', gridTemplateColumns: '2.5rem 1fr 5rem 5rem 5rem', gap: '0.5rem', padding: '0.75rem 1.25rem', background: 'var(--surface)' }}>
+            {['#', 'Player', 'Exact', 'Results', 'Pts'].map(h => (
+              <p key={h} className="caps" style={{ color: 'var(--grey-light)', textAlign: h === 'Player' ? 'left' : 'right' }}>{h}</p>
+            ))}
           </div>
 
           {loading ? (
-            <div className="p-8 text-center font-sans text-sm text-ink-400">Loading…</div>
+            <div style={{ padding: '3rem', textAlign: 'center' }}>
+              <p style={{ fontFamily: 'Barlow', color: 'var(--grey-light)' }}>Loading…</p>
+            </div>
           ) : leaders.length === 0 ? (
-            <div className="p-12 text-center">
-              <p className="heading-display text-3xl text-ink-400">No players yet.</p>
-              <p className="font-sans text-sm text-ink-400 mt-2">Be the first to sign up and predict!</p>
+            <div style={{ padding: '4rem', textAlign: 'center' }}>
+              <p className="display" style={{ fontSize: '2rem', color: 'var(--grey-light)', marginBottom: '0.5rem' }}>No players yet</p>
+              <p style={{ fontFamily: 'Barlow', color: 'var(--grey-light)', marginBottom: '1.25rem' }}>Be the first to sign up!</p>
+              <Link to="/predict" className="btn btn-lime">Start Predicting <ArrowRight size={13} /></Link>
             </div>
           ) : leaders.map((u, i) => {
             const isSelf = u.id === session?.user?.id;
             return (
-              <div
-                key={u.id}
-                className={`grid grid-cols-12 gap-2 px-5 py-4 border-b-2 border-surface-200 last:border-0 items-center ${
-                  isSelf ? 'bg-lime-500/10' : i % 2 === 0 ? 'bg-white' : 'bg-surface-100'
-                } ${i === 0 ? 'border-l-4 border-l-lime-500' : ''}`}
-              >
-                <div className="col-span-1">
-                  <span className={`heading-display text-xl ${i === 0 ? 'text-lime-500' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : 'text-ink-400'}`}>
-                    {i + 1}
-                  </span>
-                </div>
-                <div className="col-span-5 flex items-center gap-3">
-                  <div className={`w-9 h-9 flex items-center justify-center text-sm font-bold font-sans flex-shrink-0 ${
-                    i === 0 ? 'bg-lime-500 text-ink-900' : isSelf ? 'bg-ink-900 text-lime-500 border-2 border-lime-500' : 'bg-ink-900 text-white'
-                  }`}>
+              <div key={u.id} style={{
+                display: 'grid', gridTemplateColumns: '2.5rem 1fr 5rem 5rem 5rem', gap: '0.5rem',
+                padding: '0.875rem 1.25rem', borderBottom: '1.5px solid var(--surface-3)',
+                background: isSelf ? 'rgba(200,255,0,0.06)' : 'transparent',
+                borderLeft: i === 0 ? '3px solid var(--lime-dark)' : '3px solid transparent',
+                alignItems: 'center',
+              }}>
+                <span className="display" style={{ fontSize: '1.25rem', color: i === 0 ? 'var(--lime-dark)' : i === 1 ? 'var(--grey-light)' : i === 2 ? '#CD7F32' : 'var(--grey-light)' }}>
+                  {i + 1}
+                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: i === 0 ? 'var(--lime)' : isSelf ? 'var(--black)' : 'var(--surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Barlow', fontWeight: 800, fontSize: '0.72rem', color: i === 0 ? 'var(--black)' : isSelf ? 'var(--lime)' : 'var(--grey)', flexShrink: 0 }}>
                     {u.avatar_initials}
                   </div>
-                  <div>
-                    <p className={`font-sans font-bold text-sm text-ink-900 ${isSelf ? '' : ''}`}>
-                      {u.username} {isSelf && <span className="text-ink-400 font-normal">(you)</span>}
-                    </p>
-                  </div>
+                  <p style={{ fontFamily: 'Barlow', fontWeight: 700, fontSize: '0.9rem', color: 'var(--black)' }}>
+                    {u.username}{isSelf && <span style={{ color: 'var(--grey-light)', fontWeight: 400, fontSize: '0.8rem' }}> (you)</span>}
+                  </p>
                 </div>
-                <div className="col-span-2 text-right hidden sm:block">
-                  <p className="font-sans font-bold text-sm text-ink-800">{u.exact_scores}</p>
-                </div>
-                <div className="col-span-2 text-right hidden sm:block">
-                  <p className="font-sans font-bold text-sm text-ink-800">{u.correct_outcomes}</p>
-                </div>
-                <div className="col-span-2 text-right">
-                  <p className={`heading-display text-2xl ${i === 0 ? 'text-lime-600' : 'text-ink-900'}`}>{u.total_points}</p>
-                </div>
+                <p style={{ textAlign: 'right', fontFamily: 'Barlow', fontWeight: 600, fontSize: '0.9rem', color: 'var(--black)' }}>{u.exact_scores}</p>
+                <p style={{ textAlign: 'right', fontFamily: 'Barlow', fontWeight: 600, fontSize: '0.9rem', color: 'var(--black)' }}>{u.correct_outcomes}</p>
+                <p style={{ textAlign: 'right' }}>
+                  <span className="display" style={{ fontSize: '1.35rem', color: i === 0 ? 'var(--lime-dark)' : 'var(--black)' }}>{u.total_points}</span>
+                </p>
               </div>
             );
           })}
@@ -129,39 +127,38 @@ export default function Leaderboard() {
 
       {/* Rooms tab */}
       {tab === 'rooms' && (
-        <div className="space-y-8">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {!session ? (
-            <div className="card p-12 text-center border-ink-900">
-              <p className="heading-display text-3xl text-ink-400">Sign in to see your rooms.</p>
+            <div style={{ padding: '4rem', textAlign: 'center', border: '1.5px dashed var(--surface-3)', borderRadius: 'var(--r-xl)' }}>
+              <p className="display" style={{ fontSize: '2rem', color: 'var(--grey-light)' }}>Sign in to see your rooms.</p>
             </div>
           ) : rooms.length === 0 ? (
-            <div className="card p-12 text-center border-dashed border-ink-300">
-              <p className="heading-display text-3xl text-ink-400 mb-2">No rooms yet.</p>
-              <p className="font-sans text-sm text-ink-400">Create or join a room from the Rooms page.</p>
+            <div style={{ padding: '4rem', textAlign: 'center', border: '1.5px dashed var(--surface-3)', borderRadius: 'var(--r-xl)' }}>
+              <p className="display" style={{ fontSize: '2rem', color: 'var(--grey-light)', marginBottom: '0.5rem' }}>No rooms yet.</p>
+              <Link to="/rooms" className="btn btn-dark" style={{ display: 'inline-flex', marginTop: '0.5rem' }}>Go to Rooms <ArrowRight size={13} /></Link>
             </div>
           ) : rooms.map(room => {
-            const members = (room.room_members || [])
-              .map(m => m.profiles)
-              .filter(Boolean)
-              .sort((a, b) => (b.total_points || 0) - (a.total_points || 0));
+            const members = (room.room_members || []).map(m => m.profiles).filter(Boolean).sort((a, b) => (b.total_points || 0) - (a.total_points || 0));
             return (
-              <div key={room.id} className="card overflow-hidden">
-                <div className="bg-ink-900 px-5 py-3 flex items-center justify-between">
-                  <p className="heading-display text-2xl text-white">{room.name}</p>
-                  <span className="font-mono text-sm text-lime-500 font-bold">{room.code}</span>
+              <div key={room.id} className="card-flat">
+                <div style={{ padding: '1rem 1.25rem', background: 'var(--black)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <p className="display" style={{ fontSize: '1.5rem', color: '#fff' }}>{room.name}</p>
+                  <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '0.85rem', color: 'var(--lime)', letterSpacing: '0.1em' }}>{room.code}</span>
                 </div>
                 {members.map((m, i) => {
                   const isSelf = m.id === session?.user?.id;
                   return (
-                    <div key={m.id} className={`flex items-center justify-between px-5 py-3.5 border-b-2 border-surface-200 last:border-0 ${isSelf ? 'bg-lime-500/10' : ''}`}>
-                      <div className="flex items-center gap-3">
-                        <span className={`heading-display text-xl w-6 text-center ${i === 0 ? 'text-lime-500' : 'text-ink-400'}`}>{i + 1}</span>
-                        <div className={`w-8 h-8 flex items-center justify-center text-xs font-bold font-sans ${isSelf ? 'bg-lime-500 text-ink-900' : 'bg-ink-900 text-white'}`}>
+                    <div key={m.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.875rem 1.25rem', borderBottom: '1.5px solid var(--surface-3)', background: isSelf ? 'rgba(200,255,0,0.05)' : 'transparent' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                        <span className="display" style={{ fontSize: '1.25rem', minWidth: 20, color: i === 0 ? 'var(--lime-dark)' : 'var(--grey-light)' }}>{i + 1}</span>
+                        <div style={{ width: 30, height: 30, borderRadius: '50%', background: isSelf ? 'var(--lime)' : 'var(--surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Barlow', fontWeight: 800, fontSize: '0.72rem', color: isSelf ? 'var(--black)' : 'var(--grey)' }}>
                           {m.avatar_initials}
                         </div>
-                        <span className="font-sans font-bold text-sm text-ink-900">{m.username} {isSelf && <span className="text-ink-400 font-normal">(you)</span>}</span>
+                        <p style={{ fontFamily: 'Barlow', fontWeight: 700, fontSize: '0.9rem', color: 'var(--black)' }}>
+                          {m.username}{isSelf && <span style={{ color: 'var(--grey-light)', fontWeight: 400 }}> (you)</span>}
+                        </p>
                       </div>
-                      <span className="heading-display text-2xl text-ink-900">{m.total_points || 0}</span>
+                      <span className="display" style={{ fontSize: '1.5rem', color: 'var(--black)' }}>{m.total_points || 0}</span>
                     </div>
                   );
                 })}
