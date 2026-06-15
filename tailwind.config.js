@@ -4,29 +4,40 @@ export default {
   theme: {
     extend: {
       colors: {
-        cream: {
-          50: '#FBFBFA',
-          100: '#F5F5F3',
-          200: '#EAEAEA',
-          300: '#D8D8D6',
+        ink: {
+          950: '#080808',
+          900: '#0F0F0F',
+          800: '#1A1A1A',
+          700: '#2A2A2A',
+          600: '#3D3D3D',
+          400: '#777777',
+          200: '#BBBBBB',
         },
-        charcoal: {
-          900: '#1A1A1A',
-          800: '#2D2D2D',
-          700: '#3D3D3D',
-          600: '#555555',
-          400: '#888888',
+        lime: {
+          400: '#D4FF00',
+          500: '#CAFF03',
+          600: '#B3E000',
         },
-        gold: {
-          400: '#E8C84A',
-          500: '#D4AF37',
-          600: '#B8941E',
-          700: '#9A7A10',
+        pitch: {
+          900: '#0D2B0D',
+          800: '#153515',
+          700: '#1E4A1E',
+          600: '#2A6030',
+        },
+        surface: {
+          100: '#F4F4F2',
+          200: '#EBEBEB',
+          300: '#DEDEDE',
         },
       },
       fontFamily: {
-        serif: ['"Cormorant Garamond"', '"Playfair Display"', 'Georgia', 'serif'],
-        sans: ['Inter', '"Helvetica Neue"', 'Arial', 'sans-serif'],
+        display: ['"Bebas Neue"', 'Impact', 'sans-serif'],
+        condensed: ['"Barlow Condensed"', '"Barlow"', 'sans-serif'],
+        sans: ['"Barlow"', 'system-ui', 'sans-serif'],
+      },
+      fontSize: {
+        '10xl': ['10rem', { lineHeight: '1' }],
+        '9xl': ['8rem', { lineHeight: '1' }],
       },
     },
   },

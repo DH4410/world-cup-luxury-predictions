@@ -1,312 +1,336 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Plus, Hash, Users, ArrowRight, Eye, EyeOff, Activity } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Plus, Hash, Users, ArrowRight, Eye, EyeOff, ChevronLeft, Activity, Copy, Check } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { TEAMS } from '../data/mockData';
+import { TEAMS, MATCHES } from '../data/mockData';
 
 function getTeam(id) { return TEAMS.find(t => t.id === id); }
+function getMatch(id) { return MATCHES.find(m => m.id === id); }
 
-function RoomMemberRow({ member, rank }) {
-  const rankLabel = ['I', 'II', 'III', 'IV', 'V'][rank] || rank + 1;
-  return (
-    <div className={`flex items-center justify-between py-3 border-b border-cream-200 last:border-b-0 ${member.isCurrentUser ? 'bg-cream-50 -mx-4 px-4' : ''}`}>
-      <div className="flex items-center gap-4">
-        <span className={`editorial-heading text-sm w-6 text-center ${rank === 0 ? 'rank-1' : rank === 1 ? 'rank-2' : rank === 2 ? 'rank-3' : 'text-charcoal-400'}`}>
-          {rankLabel}
-        </span>
-        <div className="w-7 h-7 bg-charcoal-900 flex items-center justify-center">
-          <span className="text-cream-50 text-xs font-sans font-medium">{member.avatar}</span>
-        </div>
-        <p className={`font-sans text-sm ${member.isCurrentUser ? 'font-medium text-charcoal-900' : 'text-charcoal-700'}`}>
-          {member.name} {member.isCurrentUser && <span className="text-charcoal-400 font-normal">(you)</span>}
-        </p>
-      </div>
-      <div className="text-right">
-        <p className="font-sans text-sm font-medium text-charcoal-900">{member.totalPoints}</p>
-        <p className="editorial-label text-charcoal-400">pts</p>
-      </div>
-    </div>
-  );
+function fmtTime(ts) {
+  const d = new Date(ts);
+  const diff = Date.now() - d.getTime();
+  if (diff < 60000) return 'just now';
+  if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
+  if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
+  return Math.floor(diff / 86400000) + 'd ago';
 }
 
-function PredictionCompare({ room }) {
+function RoomDetail({ room, onBack }) {
+  const { session, profile, getRoomPredictions } = useApp();
+  const [data, setData] = useState({ members: [], predictions: {} });
   const [revealed, setRevealed] = useState(false);
-  const match = room.upcomingMatch;
-  // Find match data
-  const { matches } = useApp();
-  const upcomingMatch = matches.find(m => m.id === room.upcomingMatch);
-  if (!upcomingMatch) return null;
-  const home = getTeam(upcomingMatch.homeTeam);
-  const away = getTeam(upcomingMatch.awayTeam);
+  const [copied, setCopied] = useState(false);
+  const FEATURED_MATCH_ID = 'm1';
+  const match = getMatch(FEATURED_MATCH_ID);
+  const home = match ? getTeam(match.homeTeam) : null;
+  const away = match ? getTeam(match.awayTeam) : null;
+
+  useEffect(() => {
+    getRoomPredictions(room.id).then(setData);
+  }, [room.id]);
+
+  function copyCode() {
+    navigator.clipboard.writeText(room.code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  const sortedMembers = [...data.members].sort((a, b) =>
+    (b.profiles?.total_points || 0) - (a.profiles?.total_points || 0)
+  );
+
+  const activity = room.room_activity || [];
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <p className="editorial-label text-charcoal-400">
-          Member Predictions — {home?.name} vs {away?.name}
-        </p>
-        <button
-          onClick={() => setRevealed(v => !v)}
-          className="flex items-center gap-1.5 editorial-label text-charcoal-400 hover:text-charcoal-800 transition-colors"
-        >
-          {revealed ? <EyeOff size={11} strokeWidth={1.5} /> : <Eye size={11} strokeWidth={1.5} />}
-          {revealed ? 'Hide' : 'Reveal'}
+      {/* Header */}
+      <div className="bg-ink-900 border-b-2 border-lime-500 p-6 lg:p-10 mb-8">
+        <button onClick={onBack} className="label-caps text-ink-400 hover:text-lime-500 flex items-center gap-1.5 mb-5 transition-colors">
+          <ChevronLeft size={13} strokeWidth={3} /> All Rooms
         </button>
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div>
+            <p className="label-caps text-lime-500 mb-1">Private Room</p>
+            <h1 className="heading-display text-4xl lg:text-6xl text-white">{room.name}</h1>
+          </div>
+          <div className="flex items-center gap-2 bg-white/5 border-2 border-white/20 px-4 py-2 self-start">
+            <span className="font-mono font-bold text-white tracking-widest">{room.code}</span>
+            <button onClick={copyCode} className="text-ink-400 hover:text-lime-500 transition-colors ml-1">
+              {copied ? <Check size={14} strokeWidth={2.5} className="text-lime-500" /> : <Copy size={14} strokeWidth={2} />}
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div className="space-y-2">
-        {room.members.map(member => {
-          const pred = room.predictions[member.id];
-          const hasPredicted = !!pred;
-          return (
-            <div key={member.id} className="flex items-center justify-between p-3 border border-cream-200 bg-white">
-              <div className="flex items-center gap-3">
-                <div className="w-6 h-6 bg-charcoal-900 flex items-center justify-center">
-                  <span className="text-cream-50 text-xs font-sans">{member.avatar}</span>
-                </div>
-                <p className="font-sans text-xs text-charcoal-700">{member.name}</p>
-              </div>
-              {hasPredicted ? (
-                revealed ? (
-                  <div className="flex items-center gap-3">
-                    <span className="editorial-heading text-sm text-charcoal-900">
-                      {pred.homeScore} – {pred.awayScore}
-                    </span>
-                    <span className="font-sans text-xs text-charcoal-400">⚽ {pred.scorer}</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1.5 text-charcoal-400">
-                    <div className="w-12 h-4 bg-charcoal-900 opacity-20" />
-                    <div className="w-16 h-4 bg-charcoal-900 opacity-20" />
-                  </div>
-                )
-              ) : (
-                <span className="editorial-label text-charcoal-300">Not predicted</span>
-              )}
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* Standings */}
+        <div>
+          <div className="card overflow-hidden">
+            <div className="bg-ink-900 px-5 py-3">
+              <p className="label-caps text-lime-500">Standings</p>
             </div>
-          );
-        })}
+            {sortedMembers.length === 0 ? (
+              <div className="p-6 text-center">
+                <p className="font-sans text-sm text-ink-400">Loading members…</p>
+              </div>
+            ) : sortedMembers.map((m, i) => {
+              const p = m.profiles;
+              const isSelf = m.user_id === session?.user?.id;
+              return (
+                <div key={m.user_id} className={`flex items-center justify-between px-5 py-3.5 border-b-2 border-surface-200 last:border-0 ${isSelf ? 'bg-lime-500/10' : ''}`}>
+                  <div className="flex items-center gap-3">
+                    <span className={`heading-display text-xl w-6 text-center ${i === 0 ? 'text-lime-500' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : 'text-ink-400'}`}>
+                      {i + 1}
+                    </span>
+                    <div className={`w-8 h-8 flex items-center justify-center text-xs font-bold font-sans ${isSelf ? 'bg-lime-500 text-ink-900' : 'bg-ink-900 text-white'}`}>
+                      {p?.avatar_initials || '??'}
+                    </div>
+                    <span className={`font-sans text-sm font-bold ${isSelf ? 'text-ink-900' : 'text-ink-800'}`}>
+                      {p?.username || 'Unknown'} {isSelf && <span className="font-normal text-ink-400">(you)</span>}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-sans font-bold text-sm text-ink-900">{p?.total_points || 0}</p>
+                    <p className="label-caps text-ink-400">pts</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Predictions + Activity */}
+        <div className="lg:col-span-2 space-y-5">
+          {/* Prediction comparison */}
+          <div className="card overflow-hidden">
+            <div className="bg-ink-900 px-5 py-3 flex items-center justify-between">
+              <p className="label-caps text-lime-500">
+                Predictions — {home?.name} vs {away?.name}
+              </p>
+              <button
+                onClick={() => setRevealed(v => !v)}
+                className="flex items-center gap-1.5 label-caps text-ink-400 hover:text-lime-500 transition-colors"
+              >
+                {revealed ? <EyeOff size={12} strokeWidth={2.5} /> : <Eye size={12} strokeWidth={2.5} />}
+                {revealed ? 'Hide' : 'Reveal'}
+              </button>
+            </div>
+            <div className="divide-y-2 divide-surface-200">
+              {sortedMembers.length === 0 && (
+                <div className="p-6 text-center font-sans text-sm text-ink-400">Loading…</div>
+              )}
+              {sortedMembers.map(m => {
+                const p = m.profiles;
+                const pred = data.predictions[m.user_id]?.[FEATURED_MATCH_ID];
+                const isSelf = m.user_id === session?.user?.id;
+                return (
+                  <div key={m.user_id} className={`flex items-center justify-between px-5 py-3.5 ${isSelf ? 'bg-lime-500/5' : ''}`}>
+                    <div className="flex items-center gap-3">
+                      <div className={`w-7 h-7 flex items-center justify-center text-xs font-bold font-sans ${isSelf ? 'bg-lime-500 text-ink-900' : 'bg-ink-900 text-white'}`}>
+                        {p?.avatar_initials || '??'}
+                      </div>
+                      <span className="font-sans text-sm font-medium text-ink-800">{p?.username || 'Unknown'}</span>
+                    </div>
+                    {pred ? (
+                      revealed ? (
+                        <div className="flex items-center gap-4">
+                          <span className="heading-display text-2xl text-ink-900">{pred.home_score}–{pred.away_score}</span>
+                          {pred.scorer && <span className="font-sans text-xs font-medium text-ink-500">⚽ {pred.scorer}</span>}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <div className="h-4 w-10 bg-ink-900/20" />
+                          <div className="h-4 w-16 bg-ink-900/10" />
+                        </div>
+                      )
+                    ) : (
+                      <span className="label-caps text-ink-300">Not yet</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Activity */}
+          <div className="card overflow-hidden">
+            <div className="bg-ink-900 px-5 py-3 flex items-center gap-2">
+              <Activity size={13} strokeWidth={2.5} className="text-lime-500" />
+              <p className="label-caps text-lime-500">Activity</p>
+            </div>
+            {activity.length === 0 ? (
+              <div className="p-6 text-center font-sans text-sm text-ink-400">No activity yet.</div>
+            ) : (
+              <div className="divide-y-2 divide-surface-200">
+                {activity.slice(0, 8).map((a, i) => (
+                  <div key={i} className="flex items-start gap-3 px-5 py-3.5">
+                    <div className="w-2 h-2 bg-lime-500 rounded-full mt-1.5 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-sans text-sm text-ink-800 leading-relaxed">{a.message}</p>
+                      <p className="label-caps text-ink-300 mt-0.5">{fmtTime(a.created_at)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
 function RoomCard({ room, onSelect }) {
+  const members = room.room_members || [];
   return (
-    <div
+    <button
       onClick={() => onSelect(room)}
-      className="bg-white border border-cream-200 p-8 card-hover cursor-pointer group"
+      className="card card-hover p-6 text-left w-full group"
     >
-      <div className="flex items-start justify-between mb-5">
+      <div className="flex items-start justify-between mb-4">
         <div>
-          <p className="editorial-label text-charcoal-400 mb-2">Private Room</p>
-          <h3 className="editorial-heading text-2xl text-charcoal-900">{room.name}</h3>
+          <p className="label-caps text-ink-400 mb-1">Private Room</p>
+          <h3 className="heading-display text-2xl text-ink-900 leading-tight">{room.name}</h3>
         </div>
-        <ArrowRight size={14} strokeWidth={1.5} className="text-charcoal-300 group-hover:text-charcoal-900 transition-colors mt-1" />
+        <ArrowRight size={18} strokeWidth={2.5} className="text-ink-300 group-hover:text-lime-600 transition-colors mt-1 flex-shrink-0" />
       </div>
-      <div className="flex items-center gap-6 mb-5">
-        <div className="flex items-center gap-1.5 text-charcoal-400">
-          <Users size={12} strokeWidth={1.5} />
-          <span className="font-sans text-xs">{room.members.length} members</span>
+      <div className="flex items-center gap-4 mb-4">
+        <div className="flex items-center gap-1.5">
+          <Users size={12} strokeWidth={2.5} className="text-ink-400" />
+          <span className="font-sans text-sm font-medium text-ink-600">{members.length} member{members.length !== 1 ? 's' : ''}</span>
         </div>
-        <div className="flex items-center gap-1.5 text-charcoal-400">
-          <Hash size={12} strokeWidth={1.5} />
-          <span className="font-sans text-xs font-mono tracking-wider">{room.code}</span>
+        <div className="flex items-center gap-1.5">
+          <Hash size={12} strokeWidth={2.5} className="text-ink-400" />
+          <span className="font-mono text-sm font-bold text-ink-700">{room.code}</span>
         </div>
       </div>
       <div className="flex -space-x-2">
-        {room.members.slice(0, 5).map(m => (
-          <div key={m.id} className={`w-7 h-7 flex items-center justify-center border border-white text-xs font-sans font-medium ${m.isCurrentUser ? 'bg-gold-500 text-charcoal-900' : 'bg-charcoal-900 text-cream-50'}`}>
-            {m.avatar}
+        {members.slice(0, 6).map((m, i) => (
+          <div key={i} className="w-7 h-7 bg-ink-900 border-2 border-white flex items-center justify-center">
+            <span className="text-white text-xs font-bold font-sans">
+              {m.profiles?.avatar_initials || '?'}
+            </span>
           </div>
         ))}
       </div>
-    </div>
-  );
-}
-
-function RoomDetail({ room, onBack }) {
-  const sorted = [...room.members].sort((a, b) => b.totalPoints - a.totalPoints);
-
-  return (
-    <div>
-      {/* Room header */}
-      <div className="border border-charcoal-900 bg-charcoal-900 p-10 mb-8">
-        <button onClick={onBack} className="editorial-label text-cream-300 hover:text-gold-500 mb-6 flex items-center gap-1.5 transition-colors">
-          ← Back to Rooms
-        </button>
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="editorial-label text-gold-500 mb-2">Private Room</p>
-            <h1 className="editorial-heading text-4xl lg:text-5xl text-cream-50">{room.name}</h1>
-          </div>
-          <div className="text-right">
-            <p className="editorial-label text-cream-300 mb-1">Room Code</p>
-            <p className="font-mono text-sm text-gold-400 tracking-widest border border-gold-500/30 px-3 py-1.5 bg-charcoal-800/40">
-              {room.code}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid lg:grid-cols-3 gap-8">
-        {/* Leaderboard */}
-        <div className="lg:col-span-1">
-          <div className="bg-white border border-cream-200 p-6">
-            <p className="editorial-label text-charcoal-400 mb-5">Room Standings</p>
-            {sorted.map((m, i) => (
-              <RoomMemberRow key={m.id} member={m} rank={i} />
-            ))}
-          </div>
-        </div>
-
-        {/* Predictions + Activity */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Predictions compare */}
-          <div className="bg-white border border-cream-200 p-6">
-            <PredictionCompare room={room} />
-          </div>
-
-          {/* Activity log */}
-          <div className="bg-white border border-cream-200 p-6">
-            <div className="flex items-center gap-2 mb-5">
-              <Activity size={13} strokeWidth={1.5} className="text-charcoal-400" />
-              <p className="editorial-label text-charcoal-400">Activity Log</p>
-            </div>
-            <div className="space-y-4">
-              {room.activity.map(a => (
-                <div key={a.id} className="flex items-start gap-3">
-                  <div className="w-1 h-1 rounded-full bg-gold-500 mt-2 flex-shrink-0" />
-                  <div>
-                    <p className="font-sans text-xs text-charcoal-700 leading-relaxed">{a.text}</p>
-                    <p className="editorial-label text-charcoal-300 mt-1">{a.time}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    </button>
   );
 }
 
 export default function Rooms() {
-  const { isLoggedIn, rooms, createRoom, joinRoom } = useApp();
-  const [selectedRoom, setSelectedRoom] = useState(null);
-  const [mode, setMode] = useState(null); // 'create' | 'join'
+  const { session, createRoom, joinRoom, getRooms } = useApp();
+  const [rooms, setRooms] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState(null);
+  const [mode, setMode] = useState(null);
   const [roomName, setRoomName] = useState('');
   const [joinCode, setJoinCode] = useState('');
 
-  function handleCreate() {
+  const load = useCallback(async () => {
+    setLoading(true);
+    const data = await getRooms();
+    setRooms(data);
+    setLoading(false);
+  }, [session]);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function handleCreate() {
     if (!roomName.trim()) return;
-    const r = createRoom(roomName.trim());
-    setSelectedRoom(r);
-    setMode(null);
-    setRoomName('');
+    const room = await createRoom(roomName.trim());
+    if (room) { setRoomName(''); setMode(null); await load(); setSelected(room); }
   }
 
-  function handleJoin() {
+  async function handleJoin() {
     if (!joinCode.trim()) return;
-    const r = joinRoom(joinCode.trim());
-    if (r) setSelectedRoom(r);
-    setJoinCode('');
-    setMode(null);
+    const room = await joinRoom(joinCode.trim());
+    if (room) { setJoinCode(''); setMode(null); await load(); }
   }
 
-  if (selectedRoom) {
+  if (selected) {
+    // refresh selected room from list
+    const fresh = rooms.find(r => r.id === selected.id) || selected;
     return (
-      <main className="max-w-7xl mx-auto px-6 lg:px-12 py-14">
-        <RoomDetail room={selectedRoom} onBack={() => setSelectedRoom(null)} />
+      <main className="max-w-7xl mx-auto px-4 lg:px-10 py-10">
+        <RoomDetail room={fresh} onBack={() => setSelected(null)} />
       </main>
     );
   }
 
   return (
-    <main className="max-w-7xl mx-auto px-6 lg:px-12 py-14">
-      {/* Page heading */}
-      <div className="mb-12 border-b border-cream-200 pb-10">
-        <p className="editorial-label text-charcoal-400 mb-3">Social Prediction</p>
-        <h1 className="editorial-heading text-5xl lg:text-6xl mb-4">
-          The<br /><em>Rooms</em>
-        </h1>
-        <p className="font-sans text-sm text-charcoal-600 max-w-lg font-light leading-relaxed">
-          Create a private room, invite your circle, and compete on a dedicated leaderboard. Reveal predictions only after kick-off.
-        </p>
+    <main className="max-w-7xl mx-auto px-4 lg:px-10 py-10">
+      <div className="mb-8">
+        <p className="label-caps text-ink-400 mb-1">Social Competition</p>
+        <h1 className="heading-display text-5xl lg:text-7xl">Rooms</h1>
       </div>
 
-      {/* Action row */}
-      <div className="flex flex-wrap gap-4 mb-10">
-        <button
-          onClick={() => isLoggedIn ? setMode(mode === 'create' ? null : 'create') : null}
-          disabled={!isLoggedIn}
-          className={`btn-primary flex items-center gap-2 ${!isLoggedIn ? 'opacity-50 cursor-not-allowed' : ''}`}
-        >
-          <Plus size={13} strokeWidth={1.5} /> Create a Room
-        </button>
-        <button
-          onClick={() => isLoggedIn ? setMode(mode === 'join' ? null : 'join') : null}
-          disabled={!isLoggedIn}
-          className={`btn-ghost flex items-center gap-2 ${!isLoggedIn ? 'opacity-50 cursor-not-allowed' : ''}`}
-        >
-          <Hash size={13} strokeWidth={1.5} /> Join with Code
-        </button>
-        {!isLoggedIn && (
-          <p className="editorial-label text-charcoal-400 self-center">Sign in to create or join rooms.</p>
-        )}
-      </div>
+      {/* Actions */}
+      {session ? (
+        <div className="flex flex-wrap gap-3 mb-8">
+          <button onClick={() => setMode(mode === 'create' ? null : 'create')} className="btn-ink">
+            <Plus size={15} strokeWidth={2.5} /> New Room
+          </button>
+          <button onClick={() => setMode(mode === 'join' ? null : 'join')} className="btn-ghost">
+            <Hash size={15} strokeWidth={2.5} /> Join with Code
+          </button>
+        </div>
+      ) : (
+        <div className="card p-5 mb-8 flex items-center gap-4 border-lime-500">
+          <p className="font-sans text-sm font-medium">Sign in to create or join prediction rooms.</p>
+        </div>
+      )}
 
-      {/* Create room form */}
+      {/* Create form */}
       {mode === 'create' && (
-        <div className="bg-white border border-charcoal-900 p-8 mb-8">
-          <p className="editorial-label text-charcoal-400 mb-5">New Private Room</p>
-          <div className="flex gap-4 flex-wrap">
+        <div className="card p-6 mb-6 border-ink-900">
+          <p className="label-caps text-ink-600 mb-4">Room Name</p>
+          <div className="flex gap-3 flex-wrap">
             <input
-              type="text"
-              placeholder="Room name (e.g. The Director's Club)"
-              value={roomName}
+              type="text" value={roomName}
               onChange={e => setRoomName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleCreate()}
-              className="flex-1 border border-cream-200 bg-cream-50 px-4 py-3 font-sans text-sm text-charcoal-900 outline-none focus:border-charcoal-900 transition-colors min-w-64"
+              placeholder="e.g. The Office Champions"
+              className="flex-1 min-w-56 border-2 border-ink-900 bg-surface-100 px-4 py-2.5 font-sans text-sm outline-none focus:bg-lime-500/10 transition-colors"
             />
-            <button onClick={handleCreate} className="btn-primary">
-              Create Room <ArrowRight size={13} strokeWidth={1.5} />
-            </button>
+            <button onClick={handleCreate} className="btn-primary">Create <ArrowRight size={14} /></button>
           </div>
         </div>
       )}
 
-      {/* Join room form */}
+      {/* Join form */}
       {mode === 'join' && (
-        <div className="bg-white border border-charcoal-900 p-8 mb-8">
-          <p className="editorial-label text-charcoal-400 mb-5">Join with Room Code</p>
-          <div className="flex gap-4 flex-wrap">
+        <div className="card p-6 mb-6 border-ink-900">
+          <p className="label-caps text-ink-600 mb-4">Enter Room Code</p>
+          <div className="flex gap-3 flex-wrap">
             <input
-              type="text"
-              placeholder="Enter room code (e.g. DIR-2026)"
-              value={joinCode}
+              type="text" value={joinCode}
               onChange={e => setJoinCode(e.target.value.toUpperCase())}
               onKeyDown={e => e.key === 'Enter' && handleJoin()}
-              className="flex-1 border border-cream-200 bg-cream-50 px-4 py-3 font-sans text-sm text-charcoal-900 outline-none focus:border-charcoal-900 transition-colors font-mono tracking-widest min-w-64"
+              placeholder="ABCD-1234"
+              className="flex-1 min-w-56 border-2 border-ink-900 bg-surface-100 px-4 py-2.5 font-mono text-sm font-bold tracking-widest outline-none focus:bg-lime-500/10 transition-colors"
             />
-            <button onClick={handleJoin} className="btn-primary">
-              Join Room <ArrowRight size={13} strokeWidth={1.5} />
-            </button>
+            <button onClick={handleJoin} className="btn-primary">Join <ArrowRight size={14} /></button>
           </div>
         </div>
       )}
 
       {/* Room grid */}
-      {rooms.length > 0 ? (
+      {loading ? (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {rooms.map(room => (
-            <RoomCard key={room.id} room={room} onSelect={setSelectedRoom} />
+          {[1, 2, 3].map(i => (
+            <div key={i} className="card p-6 h-36 animate-pulse bg-surface-200 border-surface-300" />
           ))}
         </div>
+      ) : rooms.length > 0 ? (
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {rooms.map(r => <RoomCard key={r.id} room={r} onSelect={setSelected} />)}
+        </div>
       ) : (
-        <div className="text-center py-24 border border-dashed border-cream-300">
-          <p className="editorial-heading text-2xl text-charcoal-400 mb-2">No rooms yet.</p>
-          <p className="font-sans text-sm text-charcoal-400">Create your first room or join one with a code.</p>
+        <div className="card p-16 text-center border-dashed border-ink-300">
+          <p className="heading-display text-3xl text-ink-400 mb-2">No rooms yet</p>
+          <p className="font-sans text-sm text-ink-400">
+            {session ? 'Create your first room above.' : 'Sign in to create or join rooms.'}
+          </p>
         </div>
       )}
     </main>
