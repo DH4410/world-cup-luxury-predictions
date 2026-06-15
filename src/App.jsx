@@ -5,6 +5,8 @@ import Footer from './components/Footer';
 import Notification from './components/Notification';
 import Home from './pages/Home';
 import Predict from './pages/Predict';
+import Groups from './pages/Groups';
+import Schedule from './pages/Schedule';
 import Rooms from './pages/Rooms';
 import Leaderboard from './pages/Leaderboard';
 
@@ -27,6 +29,8 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/predict" element={<Predict />} />
+            <Route path="/groups" element={<Groups />} />
+            <Route path="/schedule" element={<Schedule />} />
             <Route path="/rooms" element={<Rooms />} />
             <Route path="/leaderboard" element={<Leaderboard />} />
           </Routes>

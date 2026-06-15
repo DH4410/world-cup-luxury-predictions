@@ -7,6 +7,8 @@ import AuthModal from './AuthModal';
 const NAV = [
   { to: '/',            label: 'Home' },
   { to: '/predict',     label: 'Predict' },
+  { to: '/groups',      label: 'Groups' },
+  { to: '/schedule',    label: 'Schedule' },
   { to: '/rooms',       label: 'Rooms' },
   { to: '/leaderboard', label: 'Rankings' },
 ];
@@ -27,7 +29,7 @@ export default function Header() {
         position: 'sticky', top: 0, zIndex: 40,
         backdropFilter: 'blur(8px)',
       }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 1.25rem', display: 'flex', alignItems: 'center', gap: '2rem', height: 60 }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 1.25rem', display: 'flex', alignItems: 'center', gap: '1.5rem', height: 60 }}>
 
           {/* Logo */}
           <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
@@ -42,15 +44,15 @@ export default function Header() {
             </span>
           </Link>
 
-          {/* Desktop nav tabs */}
+          {/* Desktop nav */}
           <nav style={{ display: 'flex', alignItems: 'center', gap: 0, flex: 1 }} className="hidden md:flex">
             {NAV.map(l => (
               <Link
                 key={l.to} to={l.to}
                 style={{
-                  padding: '0.45rem 1rem',
+                  padding: '0.45rem 0.85rem',
                   fontFamily: "'Barlow Condensed', sans-serif",
-                  fontSize: '0.88rem', fontWeight: 700,
+                  fontSize: '0.85rem', fontWeight: 700,
                   letterSpacing: '0.08em', textTransform: 'uppercase',
                   color: active(l.to) ? 'var(--black)' : 'var(--grey-light)',
                   borderBottom: active(l.to) ? '2.5px solid var(--lime-dark)' : '2.5px solid transparent',
@@ -66,7 +68,7 @@ export default function Header() {
             ))}
           </nav>
 
-          {/* Right side auth */}
+          {/* Auth */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginLeft: 'auto', flexShrink: 0 }} className="hidden md:flex">
             {session && profile ? (
               <>
@@ -104,7 +106,6 @@ export default function Header() {
         </div>
       </header>
 
-      {/* Mobile menu */}
       {menuOpen && (
         <div className="md:hidden anim-fade-in" style={{ background: 'var(--white)', borderBottom: '1.5px solid var(--surface-3)', zIndex: 39, position: 'relative' }}>
           <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0.75rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
