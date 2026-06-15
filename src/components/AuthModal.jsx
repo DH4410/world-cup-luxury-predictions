@@ -13,86 +13,121 @@ export default function AuthModal({ onClose }) {
   async function handleSubmit(e) {
     e.preventDefault();
     setLoading(true);
-    let ok;
-    if (mode === 'signin') {
-      ok = await signIn(email, password);
-    } else {
-      ok = await signUp(email, password, username);
-    }
+    const ok = mode === 'signin'
+      ? await signIn(email, password)
+      : await signUp(email, password, username);
     setLoading(false);
     if (ok) onClose();
   }
 
+  const inputStyle = {
+    width: '100%',
+    border: '2px solid #E0E0DE',
+    borderRadius: 8,
+    background: '#F8F8F6',
+    padding: '0.65rem 0.9rem',
+    fontFamily: 'Barlow, sans-serif',
+    fontSize: '0.9rem',
+    color: '#0F0F0F',
+    outline: 'none',
+    transition: 'border-color 0.2s',
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/80 backdrop-blur-sm px-4">
-      <div className="card w-full max-w-md relative">
-        {/* header strip */}
-        <div className="bg-ink-900 px-6 py-4 flex items-center justify-between">
-          <span className="heading-display text-2xl text-white">
-            {mode === 'signin' ? 'Sign In' : 'Create Account'}
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 50,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'rgba(13,31,13,0.75)',
+        backdropFilter: 'blur(8px)',
+        padding: '1rem',
+        animation: 'fadeIn 0.2s ease both',
+      }}
+      onClick={e => e.target === e.currentTarget && onClose()}
+    >
+      <div
+        style={{
+          background: '#fff', borderRadius: 'var(--radius-xl)',
+          border: '2px solid var(--ink)', width: '100%', maxWidth: 420,
+          overflow: 'hidden',
+          animation: 'fadeUp 0.3s cubic-bezier(0.4,0,0.2,1) both',
+          boxShadow: 'var(--shadow-lg)',
+        }}
+      >
+        {/* Header */}
+        <div style={{ background: '#0D1F0D', padding: '1.25rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span className="heading-display" style={{ fontSize: '2rem', color: '#fff' }}>
+            {mode === 'signin' ? 'Sign In' : 'Join Up'}
           </span>
-          <button onClick={onClose} className="text-ink-400 hover:text-white transition-colors">
+          <button
+            onClick={onClose}
+            style={{ color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer', borderRadius: 6, padding: '0.25rem', transition: 'color 0.2s' }}
+            onMouseEnter={e => e.currentTarget.style.color = '#fff'}
+            onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.5)'}
+          >
             <X size={18} strokeWidth={2} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {mode === 'signup' && (
             <div>
-              <label className="label-caps text-ink-600 block mb-1.5">Username</label>
+              <label className="label-caps" style={{ color: 'var(--ink-soft)', display: 'block', marginBottom: 6 }}>Username</label>
               <input
                 type="text" required value={username}
                 onChange={e => setUsername(e.target.value)}
-                placeholder="YourName"
-                className="w-full border-2 border-ink-800 bg-surface-100 px-4 py-2.5 font-sans text-sm outline-none focus:border-lime-500 transition-colors"
+                placeholder="YourGameName"
+                style={inputStyle}
+                onFocus={e => e.target.style.borderColor = 'var(--lime-dark)'}
+                onBlur={e => e.target.style.borderColor = '#E0E0DE'}
               />
             </div>
           )}
           <div>
-            <label className="label-caps text-ink-600 block mb-1.5">Email</label>
+            <label className="label-caps" style={{ color: 'var(--ink-soft)', display: 'block', marginBottom: 6 }}>Email</label>
             <input
               type="email" required value={email}
               onChange={e => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="w-full border-2 border-ink-800 bg-surface-100 px-4 py-2.5 font-sans text-sm outline-none focus:border-lime-500 transition-colors"
+              style={inputStyle}
+              onFocus={e => e.target.style.borderColor = 'var(--lime-dark)'}
+              onBlur={e => e.target.style.borderColor = '#E0E0DE'}
             />
           </div>
           <div>
-            <label className="label-caps text-ink-600 block mb-1.5">Password</label>
+            <label className="label-caps" style={{ color: 'var(--ink-soft)', display: 'block', marginBottom: 6 }}>Password</label>
             <input
               type="password" required value={password}
               onChange={e => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full border-2 border-ink-800 bg-surface-100 px-4 py-2.5 font-sans text-sm outline-none focus:border-lime-500 transition-colors"
+              style={inputStyle}
+              onFocus={e => e.target.style.borderColor = 'var(--lime-dark)'}
+              onBlur={e => e.target.style.borderColor = '#E0E0DE'}
             />
           </div>
 
           {mode === 'signup' && (
-            <p className="font-sans text-xs text-ink-400 leading-relaxed">
-              After signing up, check your email to confirm your account before signing in.
+            <p style={{ fontFamily: 'Barlow', fontSize: '0.8rem', color: 'var(--ink-soft)', lineHeight: 1.5, background: '#F8F8F6', borderRadius: 6, padding: '0.65rem 0.85rem' }}>
+              After signing up, verify your email before signing in.
             </p>
           )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className={`btn-primary w-full justify-center text-sm mt-2 ${loading ? 'opacity-60 cursor-not-allowed' : ''}`}
-          >
+          <button type="submit" disabled={loading} className="btn-primary" style={{ justifyContent: 'center', marginTop: '0.25rem', opacity: loading ? 0.6 : 1 }}>
             {loading ? 'Please wait…' : mode === 'signin' ? 'Sign In' : 'Create Account'}
           </button>
 
-          <div className="divider-light my-2" />
-
-          <p className="font-sans text-sm text-center text-ink-600">
-            {mode === 'signin' ? "Don't have an account?" : 'Already have an account?'}{' '}
+          <div style={{ borderTop: '1px solid var(--surface-2)', paddingTop: '0.75rem', textAlign: 'center' }}>
+            <span style={{ fontFamily: 'Barlow', fontSize: '0.9rem', color: 'var(--ink-soft)' }}>
+              {mode === 'signin' ? "Don't have an account? " : 'Already have an account? '}
+            </span>
             <button
               type="button"
               onClick={() => setMode(mode === 'signin' ? 'signup' : 'signin')}
-              className="font-bold text-ink-900 underline hover:text-lime-600 transition-colors"
+              style={{ fontFamily: 'Barlow', fontSize: '0.9rem', fontWeight: 700, color: 'var(--pitch)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
             >
               {mode === 'signin' ? 'Sign up' : 'Sign in'}
             </button>
-          </p>
+          </div>
         </form>
       </div>
     </div>

@@ -10,7 +10,7 @@ import Leaderboard from './pages/Leaderboard';
 
 function Layout({ children }) {
   return (
-    <div className="flex flex-col min-h-screen bg-cream-50">
+    <div className="flex flex-col min-h-screen" style={{ background: '#F0F0EE' }}>
       <Header />
       <div className="flex-1">{children}</div>
       <Footer />
