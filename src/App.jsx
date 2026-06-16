@@ -12,6 +12,7 @@ import Groups from './pages/Groups';
 import Schedule from './pages/Schedule';
 import Rooms from './pages/Rooms';
 import Leaderboard from './pages/Leaderboard';
+import Dev from './pages/Dev';
 import TrophyIntro from './components/TrophyIntro';
 
 function Layout({ children }) {
@@ -41,6 +42,7 @@ export default function App() {
             <Route path="/schedule" element={<Schedule />} />
             <Route path="/rooms" element={<Rooms />} />
             <Route path="/leaderboard" element={<Leaderboard />} />
+            <Route path="/dev" element={<Dev />} />
           </Routes>
         </Layout>
       </AppProvider>

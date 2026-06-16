@@ -24,3 +24,21 @@ dist-ssr
 *.sw?
 
 .vercel
+
+# Server env (never commit real secrets)
+server/.env
+
+# SQLite data — kept outside repo via DATA_DIR env var
+server/auth/data/
+server/game/data/
+data/
+
+# Client env
+.env.local
+
+# Temp test logs (from manual server test runs)
+*_out.txt
+*_err.txt
+
+# Misc
+PLAN.md

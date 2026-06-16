@@ -1,42 +1,18 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
+import { auth, game } from '../lib/api';
+import { subscribe } from '../lib/ws';
 import { MATCHES as MOCK_MATCHES, TEAMS as MOCK_TEAMS } from '../data/mockData';
-import { fetchMatches, fetchTeams, fetchStandings, fetchGroupsByLetter } from '../lib/wcApi';
 
 const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
-  const [session, setSession] = useState(null);
-  const [profile, setProfile] = useState(null);
+  const [session, setSession] = useState(null);   // { user: { id, username, email, avatar_initials, is_admin } }
+  const [profile, setProfile] = useState(null);   // session.user merged with game stats
   const [authLoading, setAuthLoading] = useState(true);
   const [notification, setNotification] = useState(null);
   const [matches, setMatches] = useState(MOCK_MATCHES);
   const [teams, setTeams] = useState(MOCK_TEAMS);
-  const [standings, setStandings] = useState(null);
-  const [groupsByLetter, setGroupsByLetter] = useState(null);
   const [dataReady, setDataReady] = useState(false);
-
-  // Load live WC 2026 data from worldcup26.ir (fall back silently to mocks on failure)
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const [m, t, s, g] = await Promise.all([
-          fetchMatches(), fetchTeams(), fetchStandings(), fetchGroupsByLetter(),
-        ]);
-        if (cancelled) return;
-        if (m?.length) setMatches(m);
-        if (t?.length) setTeams(t);
-        if (s) setStandings(s);
-        if (g) setGroupsByLetter(g);
-      } catch (e) {
-        console.warn('WC API failed, using mock data', e);
-      } finally {
-        if (!cancelled) setDataReady(true);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
 
   // ─── notifications ────────────────────────────────────────
   function notify(message, type = 'success') {
@@ -44,52 +20,77 @@ export function AppProvider({ children }) {
     setTimeout(() => setNotification(null), 3500);
   }
 
-  // ─── auth bootstrap ───────────────────────────────────────
+  // ─── boot: load session + match data ─────────────────────
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      if (data.session) fetchProfile(data.session.user.id);
-      else setAuthLoading(false);
-    });
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, s) => {
-      setSession(s);
-      if (s) fetchProfile(s.user.id);
-      else { setProfile(null); setAuthLoading(false); }
-    });
-    return () => listener.subscription.unsubscribe();
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const { user } = await auth.me();
+        if (cancelled) return;
+        const stats = await game.me().catch(() => ({}));
+        if (cancelled) return;
+        setSession({ user });
+        setProfile({ ...user, ...stats });
+      } catch {
+        // Not logged in — that's fine
+      } finally {
+        if (!cancelled) setAuthLoading(false);
+      }
+    })();
+
+    // Load matches from game server (falls back to mock if unreachable)
+    (async () => {
+      try {
+        const m = await game.matches();
+        if (!cancelled && m?.length) setMatches(m);
+      } catch {
+        console.warn('Game server unreachable, using mock match data');
+      } finally {
+        if (!cancelled) setDataReady(true);
+      }
+    })();
+
+    return () => { cancelled = true; };
   }, []);
 
-  async function fetchProfile(uid) {
-    const { data } = await supabase.from('profiles').select('*').eq('id', uid).single();
-    setProfile(data || null);
-    setAuthLoading(false);
-  }
+  // ─── live leaderboard via WebSocket ──────────────────────
+  // (rooms subscribe locally in the Rooms/Leaderboard pages)
 
-  // ─── sign up ──────────────────────────────────────────────
+  // ─── auth ─────────────────────────────────────────────────
   async function signUp(email, password, username) {
-    const initials = username.slice(0, 2).toUpperCase();
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error) { notify(error.message, 'error'); return false; }
-    const uid = data.user.id;
-    const { error: pErr } = await supabase.from('profiles').insert({
-      id: uid, username, avatar_initials: initials,
-    });
-    if (pErr) { notify(pErr.message, 'error'); return false; }
-    notify('Account created! Check your email to confirm, then sign in.', 'success');
-    return true;
+    // AppContext historically called signUp(email, password, username) — keep that order
+    try {
+      const { user } = await auth.signUp(username, email, password);
+      const stats = await game.me().catch(() => ({}));
+      setSession({ user });
+      setProfile({ ...user, ...stats });
+      notify('Account created! Welcome.', 'success');
+      return true;
+    } catch (e) {
+      notify(e.message, 'error');
+      return false;
+    }
   }
 
-  // ─── sign in ──────────────────────────────────────────────
   async function signIn(email, password) {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) { notify(error.message, 'error'); return false; }
-    notify('Welcome back!', 'success');
-    return true;
+    // 'email' can also be a username — auth server accepts both
+    try {
+      const { user } = await auth.signIn(email, password);
+      const stats = await game.me().catch(() => ({}));
+      setSession({ user });
+      setProfile({ ...user, ...stats });
+      notify('Welcome back!', 'success');
+      return true;
+    } catch (e) {
+      notify(e.message, 'error');
+      return false;
+    }
   }
 
-  // ─── sign out ─────────────────────────────────────────────
   async function signOut() {
-    await supabase.auth.signOut();
+    await auth.signOut().catch(() => {});
+    setSession(null);
     setProfile(null);
     notify('Signed out.', 'info');
   }
@@ -97,116 +98,69 @@ export function AppProvider({ children }) {
   // ─── predictions ──────────────────────────────────────────
   async function savePrediction(matchId, pred) {
     if (!session) { notify('Sign in to submit predictions.', 'error'); return; }
-    const { error } = await supabase.from('predictions').upsert({
-      user_id: session.user.id,
-      match_id: matchId,
-      home_score: pred.homeScore,
-      away_score: pred.awayScore,
-      scorer: pred.scorer || '',
-      assister: pred.assister || '',
-      motm: pred.motm || '',
-    }, { onConflict: 'user_id,match_id' });
-    if (error) { notify(error.message, 'error'); return; }
-
-    // award points if match already has a result
-    const match = matches.find(m => m.id === matchId);
-    if (match?.status === 'completed' && match.result) {
-      let pts = 0;
-      if (pred.homeScore === match.result.homeScore && pred.awayScore === match.result.awayScore) pts += 5;
-      else {
-        const predDir = Math.sign(pred.homeScore - pred.awayScore);
-        const resDir = Math.sign(match.result.homeScore - match.result.awayScore);
-        if (predDir === resDir) pts += 2;
-      }
-      if (pred.scorer && pred.scorer === match.result.scorer) pts += 2;
-      if (pred.assister && pred.assister === match.result.assister) pts += 1;
-      if (pred.motm && pred.motm === match.result.motm) pts += 1;
-      if (pts > 0) {
-        await supabase.from('predictions')
-          .update({ points_earned: pts })
-          .eq('user_id', session.user.id).eq('match_id', matchId);
-        await supabase.from('profiles')
-          .update({ total_points: (profile?.total_points || 0) + pts })
-          .eq('id', session.user.id);
-        setProfile(p => p ? { ...p, total_points: (p.total_points || 0) + pts } : p);
-        notify(`Locked in! +${pts} pts`, 'lime');
-        return;
-      }
+    try {
+      await game.savePrediction(matchId, {
+        homeScore: pred.homeScore,
+        awayScore: pred.awayScore,
+        scorer: pred.scorer || '',
+        assister: pred.assister || '',
+        motm: pred.motm || '',
+      });
+      notify('Prediction saved.', 'success');
+    } catch (e) {
+      notify(e.message, 'error');
     }
-    notify('Prediction saved.', 'success');
   }
 
   async function getMyPredictions() {
     if (!session) return {};
-    const { data } = await supabase.from('predictions')
-      .select('*').eq('user_id', session.user.id);
-    if (!data) return {};
-    return Object.fromEntries(data.map(p => [p.match_id, {
-      homeScore: p.home_score, awayScore: p.away_score,
-      scorer: p.scorer, assister: p.assister, motm: p.motm,
-    }]));
+    return game.myPredictions().catch(() => ({}));
   }
 
   // ─── rooms ────────────────────────────────────────────────
   async function createRoom(name) {
     if (!session) { notify('Sign in to create rooms.', 'error'); return null; }
-    const code = name.replace(/\s+/g, '').slice(0, 4).toUpperCase() + '-' + Math.floor(1000 + Math.random() * 9000);
-    const { data: room, error } = await supabase.from('rooms')
-      .insert({ name, code, created_by: session.user.id })
-      .select().single();
-    if (error) { notify(error.message, 'error'); return null; }
-    await supabase.from('room_members').insert({ room_id: room.id, user_id: session.user.id });
-    await supabase.from('room_activity').insert({ room_id: room.id, message: `${profile?.username} created this room.` });
-    notify(`Room "${name}" created! Code: ${code}`, 'lime');
-    return room;
+    try {
+      const room = await game.createRoom(name);
+      notify(`Room "${name}" created! Code: ${room.code}`, 'lime');
+      return room;
+    } catch (e) {
+      notify(e.message, 'error');
+      return null;
+    }
   }
 
   async function joinRoom(code) {
     if (!session) { notify('Sign in to join rooms.', 'error'); return null; }
-    const { data: room, error } = await supabase.from('rooms')
-      .select('*').eq('code', code.trim().toUpperCase()).single();
-    if (error || !room) { notify('Room not found. Check the code.', 'error'); return null; }
-    const { error: mErr } = await supabase.from('room_members')
-      .insert({ room_id: room.id, user_id: session.user.id });
-    if (mErr && mErr.code !== '23505') { notify(mErr.message, 'error'); return null; }
-    await supabase.from('room_activity').insert({ room_id: room.id, message: `${profile?.username} joined the room.` });
-    notify(`Joined "${room.name}"!`, 'lime');
-    return room;
+    try {
+      const room = await game.joinRoom(code);
+      notify(`Joined "${room.name}"!`, 'lime');
+      return room;
+    } catch (e) {
+      notify(e.message, 'error');
+      return null;
+    }
   }
 
   async function getRooms() {
     if (!session) return [];
-    const { data: memberships } = await supabase.from('room_members')
-      .select('room_id').eq('user_id', session.user.id);
-    if (!memberships?.length) return [];
-    const ids = memberships.map(m => m.room_id);
-    const { data: rooms } = await supabase.from('rooms')
-      .select('*, room_members(user_id, profiles(*)), room_activity(message, created_at)')
-      .in('id', ids)
-      .order('created_at', { referencedTable: 'room_activity', ascending: false });
-    return rooms || [];
+    return game.myRooms().catch(() => []);
   }
 
   async function getRoomPredictions(roomId) {
-    const { data: members } = await supabase.from('room_members')
-      .select('user_id, profiles(*)').eq('room_id', roomId);
-    if (!members) return { members: [], predictions: {} };
-    const userIds = members.map(m => m.user_id);
-    const { data: preds } = await supabase.from('predictions')
-      .select('*').in('user_id', userIds);
-    const predMap = {};
-    for (const p of (preds || [])) {
-      if (!predMap[p.user_id]) predMap[p.user_id] = {};
-      predMap[p.user_id][p.match_id] = p;
-    }
-    return { members, predictions: predMap };
+    return game.roomPredictions(roomId).catch(() => ({ members: [], predictions: {} }));
   }
 
+  // ─── leaderboard ──────────────────────────────────────────
   async function getLeaderboard() {
-    const { data } = await supabase.from('profiles')
-      .select('*').order('total_points', { ascending: false }).limit(50);
-    return data || [];
+    return game.leaderboard().catch(() => []);
   }
+
+  // ─── derived/compat fields ────────────────────────────────
+  // These keep existing pages working without changes.
+  // standings/groupsByLetter are derived client-side from matches (same as before).
+  const standings = buildStandings(matches, teams);
+  const groupsByLetter = buildGroupsByLetter(matches);
 
   return (
     <AppContext.Provider value={{
@@ -227,4 +181,49 @@ export function useApp() {
   const ctx = useContext(AppContext);
   if (!ctx) throw new Error('useApp must be inside AppProvider');
   return ctx;
+}
+
+// ─── helpers (previously in wcApi.js) ─────────────────────
+
+function buildStandings(matches, teams) {
+  const teamById = Object.fromEntries(teams.map(t => [t.id, t]));
+  const groups = {};
+
+  for (const m of matches) {
+    if (m.stageType !== 'group' || m.status !== 'completed' || !m.result) continue;
+    const { homeScore, awayScore } = m.result;
+    const homeId = m.homeTeam;
+    const awayId = m.awayTeam;
+    const g = m.group;
+    if (!g) continue;
+
+    if (!groups[g]) groups[g] = {};
+    if (!groups[g][homeId]) groups[g][homeId] = { team: teamById[homeId] || m.home, mp: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0 };
+    if (!groups[g][awayId]) groups[g][awayId] = { team: teamById[awayId] || m.away, mp: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0 };
+
+    const h = groups[g][homeId];
+    const a = groups[g][awayId];
+    h.mp++; h.gf += homeScore; h.ga += awayScore; h.gd = h.gf - h.ga;
+    a.mp++; a.gf += awayScore; a.ga += homeScore; a.gd = a.gf - a.ga;
+    if (homeScore > awayScore) { h.w++; h.pts += 3; a.l++; }
+    else if (homeScore < awayScore) { a.w++; a.pts += 3; h.l++; }
+    else { h.d++; h.pts++; a.d++; a.pts++; }
+  }
+
+  const out = {};
+  for (const [g, rows] of Object.entries(groups)) {
+    out[g] = Object.values(rows).sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf);
+  }
+  return out;
+}
+
+function buildGroupsByLetter(matches) {
+  const out = {};
+  for (const m of matches) {
+    if (!m.group) continue;
+    if (!out[m.group]) out[m.group] = [];
+    if (m.home && !out[m.group].find(t => t.id === m.home.id)) out[m.group].push(m.home);
+    if (m.away && !out[m.group].find(t => t.id === m.away.id)) out[m.group].push(m.away);
+  }
+  return out;
 }

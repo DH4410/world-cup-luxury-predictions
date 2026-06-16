@@ -105,9 +105,8 @@ function SignInCard({ onOpen }) {
 
 function MatchCard({ match, pred, expanded, onToggle, onSaved, onRequireAuth }) {
   const { session, savePrediction } = useApp();
+  // Look up players by FIFA code (e.g. 'BRA' → 'bra') — works with both live API and mock data
   const players = [
-    ...(PLAYERS[match.homeTeam] || []),
-    ...(PLAYERS[match.awayTeam] || []),
     ...(PLAYERS[(match.home?.code || '').toLowerCase()] || []),
     ...(PLAYERS[(match.away?.code || '').toLowerCase()] || []),
   ];

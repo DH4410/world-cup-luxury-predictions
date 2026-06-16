@@ -1,10 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, Hash, Users, ArrowRight, Eye, EyeOff, ChevronLeft, Activity, Copy, Check } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { TEAMS, MATCHES, flagUrl } from '../data/mockData';
-
-function getTeam(id) { return TEAMS.find(t => t.id === id); }
-function getMatch(id) { return MATCHES.find(m => m.id === id); }
 
 function fmtAge(ts) {
   const diff = Date.now() - new Date(ts).getTime();
@@ -15,14 +11,18 @@ function fmtAge(ts) {
 }
 
 function RoomDetail({ room, onBack }) {
-  const { session, getRoomPredictions } = useApp();
+  const { session, getRoomPredictions, matches } = useApp();
   const [data, setData] = useState({ members: [], predictions: {} });
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
-  const FEATURED = 'm1';
-  const match = getMatch(FEATURED);
-  const homeTeam = match ? getTeam(match.homeTeam) : null;
-  const awayTeam = match ? getTeam(match.awayTeam) : null;
+
+  // Use the next live or upcoming match as the featured comparison match
+  const match = matches.find(m => m.status === 'live') ||
+    matches.find(m => m.status === 'upcoming' && new Date(m.kickoff) > new Date()) ||
+    matches[0] ||
+    null;
+  const homeTeam = match?.home || null;
+  const awayTeam = match?.away || null;
 
   useEffect(() => { getRoomPredictions(room.id).then(setData); }, [room.id]);
 
