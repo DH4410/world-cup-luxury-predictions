@@ -122,20 +122,20 @@ export default function Home() {
       <section style={{
         position: 'relative', overflow: 'hidden',
         borderBottom: '1.5px solid var(--chalk)',
-        minHeight: 640,
+        minHeight: 620,
       }}>
-        {/* Full-bleed sharp photographic background */}
+        {/* Blurred photographic background */}
         <div style={{
           position: 'absolute', inset: 0,
           backgroundImage: `url(${heroBg})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
-          transform: 'scale(1.02)',
+          filter: 'blur(14px) saturate(1.05)',
+          transform: 'scale(1.1)',
         }} />
-        {/* Subtle global darken for legibility on the right side */}
         <div style={{
           position: 'absolute', inset: 0,
-          background: 'linear-gradient(115deg, rgba(20,32,26,0.18) 0%, rgba(20,32,26,0.05) 60%, rgba(20,32,26,0.42) 100%)',
+          background: 'linear-gradient(105deg, rgba(245,248,236,0.96) 0%, rgba(245,248,236,0.86) 45%, rgba(245,248,236,0.55) 75%, rgba(245,248,236,0.25) 100%)',
         }} />
 
         <div style={{
@@ -144,17 +144,7 @@ export default function Home() {
           padding: '4.5rem 1.5rem 4rem',
           display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: '2.5rem', alignItems: 'center',
         }}>
-          {/* Frosted-glass panel — blurs ONLY behind the text column */}
-          <div style={{
-            position: 'relative',
-            background: 'rgba(245,248,236,0.78)',
-            backdropFilter: 'blur(22px) saturate(1.1)',
-            WebkitBackdropFilter: 'blur(22px) saturate(1.1)',
-            border: '1px solid rgba(255,255,255,0.6)',
-            borderRadius: 16,
-            padding: '2.25rem 2.25rem 2rem',
-            boxShadow: '0 30px 60px rgba(20,32,26,0.18)',
-          }}>
+          <div>
             <div className="anim-fade-up" style={{ fontFamily: 'Inter', fontWeight: 600, fontSize: '0.72rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--turf-deep)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ display: 'inline-block', width: 28, height: 1.5, background: 'var(--turf-deep)' }} />
               FIFA World Cup 2026
