@@ -6,6 +6,7 @@ import Notification from './components/Notification';
 import Home from './pages/Home';
 import Predict from './pages/Predict';
 import AllPredictions from './pages/AllPredictions';
+import TrophyIntro from './components/TrophyIntro';
 import Groups from './pages/Groups';
 import Schedule from './pages/Schedule';
 import Rooms from './pages/Rooms';
@@ -26,6 +27,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AppProvider>
+        <TrophyIntro />
         <Layout>
           <Routes>
             <Route path="/" element={<Home />} />
