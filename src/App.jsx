@@ -11,6 +11,7 @@ import Groups from './pages/Groups';
 import Schedule from './pages/Schedule';
 import Rooms from './pages/Rooms';
 import Leaderboard from './pages/Leaderboard';
+import TrophyIntro from './components/TrophyIntro';
 
 function Layout({ children }) {
   return (
@@ -27,6 +28,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AppProvider>
+        <TrophyIntro />
         <Layout>
           <Routes>
             <Route path="/" element={<Home />} />
