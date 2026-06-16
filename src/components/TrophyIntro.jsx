@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 
 const STORAGE_KEY = 'matchday.introSeenV2';
-const FADE_DURATION = 1.4; // seconds of volume fade at end
+const FADE_DURATION = 2.4;   // seconds of volume fade at end
+const BASE_VOLUME   = 0.5;   // default volume — 50% of full
+const CLOSE_DURATION = 1200; // ms — matches CSS opacity transition
 
 export default function TrophyIntro({ force = false }) {
   const [show, setShow] = useState(() => {
@@ -10,7 +12,6 @@ export default function TrophyIntro({ force = false }) {
     try { return !localStorage.getItem(STORAGE_KEY); } catch { return true; }
   });
   const [closing, setClosing] = useState(false);
-  const [muted, setMuted] = useState(false);
   const [needsTapToPlay, setNeedsTapToPlay] = useState(false);
   const videoRef = useRef(null);
 
@@ -20,18 +21,18 @@ export default function TrophyIntro({ force = false }) {
     try { localStorage.setItem(STORAGE_KEY, '1'); } catch {}
     const v = videoRef.current;
     if (v) {
-      // quick fade out before unmount
+      // Smooth audio ramp synced to the visual fade
       const startVol = v.volume;
       const t0 = performance.now();
       const fade = () => {
-        const t = (performance.now() - t0) / 600;
         if (!videoRef.current) return;
+        const t = Math.min(1, (performance.now() - t0) / 900);
         videoRef.current.volume = Math.max(0, startVol * (1 - t));
         if (t < 1) requestAnimationFrame(fade);
       };
       fade();
     }
-    setTimeout(() => setShow(false), 700);
+    setTimeout(() => setShow(false), CLOSE_DURATION);
   }
 
   useEffect(() => {
@@ -39,16 +40,23 @@ export default function TrophyIntro({ force = false }) {
     const v = videoRef.current;
     if (!v) return;
 
-    v.volume = 1.0;
+    v.volume = BASE_VOLUME;
     const tryPlay = async () => {
       try {
         await v.play();
       } catch {
-        // Browser blocked unmuted autoplay — fall back to muted autoplay
+        // Browser blocked unmuted autoplay — start muted, then auto-restore
+        // sound the moment the user interacts anywhere on the page.
         v.muted = true;
-        setMuted(true);
         try { await v.play(); }
-        catch { setNeedsTapToPlay(true); }
+        catch { setNeedsTapToPlay(true); return; }
+        const unmute = () => {
+          if (!videoRef.current) return;
+          videoRef.current.muted = false;
+          videoRef.current.volume = BASE_VOLUME;
+        };
+        window.addEventListener('pointerdown', unmute, { once: true });
+        window.addEventListener('keydown', unmute, { once: true });
       }
     };
     tryPlay();
@@ -57,8 +65,8 @@ export default function TrophyIntro({ force = false }) {
       if (!v.duration) return;
       const remain = v.duration - v.currentTime;
       if (remain <= FADE_DURATION && remain > 0) {
-        const k = remain / FADE_DURATION;     // 1 → 0
-        v.volume = Math.max(0, Math.min(1, k));
+        const k = remain / FADE_DURATION;          // 1 → 0
+        v.volume = Math.max(0, BASE_VOLUME * k);
       }
     };
     const onEnded = () => handleSkip();
@@ -71,19 +79,11 @@ export default function TrophyIntro({ force = false }) {
     };
   }, [show]);
 
-  function enableSound() {
-    const v = videoRef.current;
-    if (!v) return;
-    v.muted = false;
-    setMuted(false);
-    v.play().catch(() => {});
-  }
-
   function tapToPlay() {
     const v = videoRef.current;
     if (!v) return;
     v.muted = false;
-    setMuted(false);
+    v.volume = BASE_VOLUME;
     setNeedsTapToPlay(false);
     v.play().catch(() => {});
   }
@@ -96,8 +96,10 @@ export default function TrophyIntro({ force = false }) {
         position: 'fixed', inset: 0, zIndex: 9999,
         background: '#000',
         opacity: closing ? 0 : 1,
-        transition: 'opacity 0.7s ease',
+        // Ease out on close so the outro feels intentional, not abrupt
+        transition: 'opacity 1.2s cubic-bezier(0.22, 0.61, 0.36, 1)',
         overflow: 'hidden',
+        pointerEvents: closing ? 'none' : 'auto',
       }}
     >
       <video
@@ -111,6 +113,9 @@ export default function TrophyIntro({ force = false }) {
           width: '100%', height: '100%',
           objectFit: 'cover',
           background: '#000',
+          // Subtle dim + scale on close — softens the cut to the main page
+          transform: closing ? 'scale(1.04)' : 'scale(1)',
+          transition: 'transform 1.2s cubic-bezier(0.22, 0.61, 0.36, 1)',
         }}
       />
 
@@ -140,27 +145,14 @@ export default function TrophyIntro({ force = false }) {
           <span style={{ fontFamily: 'Bebas Neue, Impact, sans-serif', fontSize: '1.5rem', letterSpacing: '0.06em' }}>MATCHDAY</span>
         </div>
 
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          {muted && !needsTapToPlay && (
-            <button onClick={enableSound} style={pillBtnStyle('rgba(255,255,255,0.07)')}
-              onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.14)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.07)'}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
-              </svg>
-              Unmute
-            </button>
-          )}
-          <button onClick={handleSkip} style={pillBtnStyle('rgba(255,255,255,0.07)')}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.14)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.transform = 'translateY(0)'; }}>
-            Skip intro
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </button>
-        </div>
+        <button onClick={handleSkip} style={pillBtnStyle('rgba(255,255,255,0.07)')}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.14)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.transform = 'translateY(0)'; }}>
+          Skip intro
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        </button>
       </div>
 
       {/* If autoplay was blocked entirely — show a big tap-to-play */}
@@ -188,6 +180,8 @@ export default function TrophyIntro({ force = false }) {
         position: 'absolute', left: 0, right: 0, bottom: 0,
         padding: '0 2rem 2rem', zIndex: 2,
         display: 'flex', justifyContent: 'center',
+        opacity: closing ? 0 : 1,
+        transition: 'opacity 0.6s ease',
       }}>
         <button onClick={handleSkip} style={{
           background: '#B6E84B', color: '#14201A',

@@ -2,11 +2,42 @@
    Endpoints used: /get/teams, /get/games, /get/groups, /get/stadiums */
 
 const BASE = 'https://worldcup26.ir';
+const CACHE_PREFIX = 'wc26.cache.';
+const CACHE_TTL_OK = 6 * 3600 * 1000;     // refresh good cache after 6h
+const CACHE_TTL_STALE = 30 * 86400 * 1000; // serve stale cache up to 30d on failure
+
+function cacheRead(key) {
+  try {
+    const raw = localStorage.getItem(CACHE_PREFIX + key);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch { return null; }
+}
+function cacheWrite(key, value) {
+  try { localStorage.setItem(CACHE_PREFIX + key, JSON.stringify({ t: Date.now(), v: value })); } catch {}
+}
 
 async function get(path) {
   const res = await fetch(`${BASE}${path}`);
   if (!res.ok) throw new Error(`WC API ${res.status} ${path}`);
   return res.json();
+}
+
+// Wrap a fetch with a localStorage cache so flags/standings survive an outage.
+async function getCached(key, path, transform) {
+  const hit = cacheRead(key);
+  const fresh = hit && Date.now() - hit.t < CACHE_TTL_OK;
+  if (fresh) return hit.v;
+
+  try {
+    const data = await get(path);
+    const out = transform(data);
+    cacheWrite(key, out);
+    return out;
+  } catch (err) {
+    if (hit && Date.now() - hit.t < CACHE_TTL_STALE) return hit.v;
+    throw err;
+  }
 }
 
 let _teamsP = null;
@@ -15,19 +46,19 @@ let _groupsP = null;
 let _stadiumsP = null;
 
 export function fetchTeams() {
-  if (!_teamsP) _teamsP = get('/get/teams').then(d => (d.teams || []).map(normalizeTeam));
+  if (!_teamsP) _teamsP = getCached('teams', '/get/teams', d => (d.teams || []).map(normalizeTeam));
   return _teamsP;
 }
 export function fetchGroupsRaw() {
-  if (!_groupsP) _groupsP = get('/get/groups').then(d => d.groups || []);
+  if (!_groupsP) _groupsP = getCached('groups', '/get/groups', d => d.groups || []);
   return _groupsP;
 }
 export function fetchStadiums() {
-  if (!_stadiumsP) _stadiumsP = get('/get/stadiums').then(d => (d.stadiums || []).reduce((m, s) => (m[s.id] = s, m), {}));
+  if (!_stadiumsP) _stadiumsP = getCached('stadiums', '/get/stadiums', d => (d.stadiums || []).reduce((m, s) => (m[s.id] = s, m), {}));
   return _stadiumsP;
 }
 export function fetchGames() {
-  if (!_gamesP) _gamesP = get('/get/games').then(d => d.games || []);
+  if (!_gamesP) _gamesP = getCached('games', '/get/games', d => d.games || []);
   return _gamesP;
 }
 
