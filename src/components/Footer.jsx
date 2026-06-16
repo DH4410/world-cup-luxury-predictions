@@ -12,7 +12,7 @@ export default function Footer() {
           <span className="display" style={{ fontSize: '1.4rem', color: '#fff', letterSpacing: '0.04em' }}>Matchday</span>
         </div>
         <nav style={{ display: 'flex', flexWrap: 'wrap', gap: '1.25rem' }}>
-          {[['/', 'Home'], ['/predict', 'Predict'], ['/rooms', 'Rooms'], ['/leaderboard', 'Rankings']].map(([to, label]) => (
+          {[['/', 'Home'], ['/predict', 'Predict'], ['/insights', 'Insights'], ['/rewards', 'Rewards'], ['/about', 'About']].map(([to, label]) => (
             <Link key={to} to={to}
               style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '0.85rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', transition: 'color 0.15s' }}
               onMouseEnter={e => e.currentTarget.style.color = '#fff'}

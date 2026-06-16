@@ -5,8 +5,9 @@ import Footer from './components/Footer';
 import Notification from './components/Notification';
 import Home from './pages/Home';
 import Predict from './pages/Predict';
-import AllPredictions from './pages/AllPredictions';
 import Insights from './pages/Insights';
+import About from './pages/About';
+import Rewards from './pages/Rewards';
 import Groups from './pages/Groups';
 import Schedule from './pages/Schedule';
 import Rooms from './pages/Rooms';
@@ -31,8 +32,9 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/predict" element={<Predict />} />
-            <Route path="/predictions" element={<AllPredictions />} />
             <Route path="/insights" element={<Insights />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/rewards" element={<Rewards />} />
             <Route path="/groups" element={<Groups />} />
             <Route path="/schedule" element={<Schedule />} />
             <Route path="/rooms" element={<Rooms />} />
