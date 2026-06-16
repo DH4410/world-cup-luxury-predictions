@@ -418,11 +418,6 @@ export default function Predict() {
           ))
         )}
 
-        <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
-          <Link to="/predictions" style={{
-            fontFamily: 'Inter', fontWeight: 700, fontSize: '0.86rem', color: 'var(--turf-deep)',
-          }}>View all predictions →</Link>
-        </div>
       </main>
 
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}

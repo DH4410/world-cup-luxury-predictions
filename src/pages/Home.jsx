@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, ChevronRight, Target, Trophy, BarChart3, Newspaper } from 'lucide-react';
+import { ArrowRight, ChevronRight, Target, Trophy, BarChart3, Newspaper, Clock, Goal, Users, Activity } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useState, useEffect, useMemo } from 'react';
-import { fetchUpcoming, fetchNextFeatured } from '../lib/espnApi';
+import { fetchUpcoming, fetchNextFeatured, fetchNews } from '../lib/espnApi';
 
 const HERO_IMAGES = [
   'https://images.unsplash.com/photo-1551958219-acbc608c6377?w=2000&q=80',
@@ -83,17 +83,32 @@ function ScoreboardCountdown({ target }) {
 const SPORT_TABS = ['All', 'World Cup', 'Football', 'Basketball', 'Tennis', 'Cricket'];
 
 export default function Home() {
-  const { getLeaderboard } = useApp();
+  const { getLeaderboard, matches: allMatches, teams } = useApp();
   const [leaders, setLeaders] = useState([]);
   const [tab, setTab] = useState('All');
   const [matches, setMatches] = useState([]);
   const [featured, setFeatured] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [news, setNews] = useState([]);
 
   const heroBg = useMemo(() => pick(HERO_IMAGES), []);
   const pitchBg = useMemo(() => pick(PITCH_IMAGES), []);
 
   useEffect(() => { getLeaderboard().then(d => setLeaders(d.slice(0, 5))); }, []);
+  useEffect(() => { fetchNews(3).then(setNews).catch(() => {}); }, []);
+
+  // Live "tournament at a glance" stats
+  const stats = useMemo(() => {
+    const completed = allMatches.filter(m => m.status === 'completed' && m.result);
+    const goals = completed.reduce((s, m) => s + (m.result.homeScore || 0) + (m.result.awayScore || 0), 0);
+    return {
+      played: completed.length,
+      total: allMatches.length,
+      goals,
+      avgGoals: completed.length ? (goals / completed.length).toFixed(1) : '—',
+      teams: teams.length,
+    };
+  }, [allMatches, teams]);
 
   useEffect(() => {
     let cancelled = false;
@@ -122,20 +137,20 @@ export default function Home() {
       <section style={{
         position: 'relative', overflow: 'hidden',
         borderBottom: '1.5px solid var(--chalk)',
-        minHeight: 640,
+        minHeight: 620,
       }}>
-        {/* Full-bleed sharp photographic background */}
+        {/* Blurred photographic background */}
         <div style={{
           position: 'absolute', inset: 0,
           backgroundImage: `url(${heroBg})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
-          transform: 'scale(1.02)',
+          filter: 'blur(14px) saturate(1.05)',
+          transform: 'scale(1.1)',
         }} />
-        {/* Subtle global darken for legibility on the right side */}
         <div style={{
           position: 'absolute', inset: 0,
-          background: 'linear-gradient(115deg, rgba(20,32,26,0.18) 0%, rgba(20,32,26,0.05) 60%, rgba(20,32,26,0.42) 100%)',
+          background: 'linear-gradient(105deg, rgba(245,248,236,0.96) 0%, rgba(245,248,236,0.86) 45%, rgba(245,248,236,0.55) 75%, rgba(245,248,236,0.25) 100%)',
         }} />
 
         <div style={{
@@ -144,17 +159,7 @@ export default function Home() {
           padding: '4.5rem 1.5rem 4rem',
           display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: '2.5rem', alignItems: 'center',
         }}>
-          {/* Frosted-glass panel — blurs ONLY behind the text column */}
-          <div style={{
-            position: 'relative',
-            background: 'rgba(245,248,236,0.78)',
-            backdropFilter: 'blur(22px) saturate(1.1)',
-            WebkitBackdropFilter: 'blur(22px) saturate(1.1)',
-            border: '1px solid rgba(255,255,255,0.6)',
-            borderRadius: 16,
-            padding: '2.25rem 2.25rem 2rem',
-            boxShadow: '0 30px 60px rgba(20,32,26,0.18)',
-          }}>
+          <div>
             <div className="anim-fade-up" style={{ fontFamily: 'Inter', fontWeight: 600, fontSize: '0.72rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--turf-deep)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ display: 'inline-block', width: 28, height: 1.5, background: 'var(--turf-deep)' }} />
               FIFA World Cup 2026
@@ -286,6 +291,39 @@ export default function Home() {
         </div>
       </section>
 
+      {/* TOURNAMENT AT A GLANCE */}
+      <section style={{ maxWidth: 1440, margin: '0 auto', padding: '1.25rem 1.5rem 0' }}>
+        <div style={{
+          display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.85rem',
+        }}>
+          {[
+            { icon: Clock,    label: 'Matches played', value: `${stats.played}`, sub: `of ${stats.total}` },
+            { icon: Goal,     label: 'Goals scored',   value: `${stats.goals}`,  sub: `${stats.avgGoals} per match` },
+            { icon: Users,    label: 'Teams competing', value: `${stats.teams}`, sub: 'across 12 groups' },
+            { icon: Activity, label: 'Live now',        value: featured ? '1' : '0', sub: 'kickoffs in 24 hours' },
+          ].map(({ icon: Icon, label, value, sub }) => (
+            <div key={label} className="lift" style={{
+              background: 'var(--white)', border: '1.5px solid var(--chalk)',
+              borderRadius: 10, padding: '1rem 1.1rem',
+              display: 'flex', alignItems: 'center', gap: '0.85rem',
+            }}>
+              <div style={{
+                width: 40, height: 40, borderRadius: 10,
+                background: 'var(--lime-faint)', border: '1.5px solid var(--turf)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+              }}>
+                <Icon size={17} strokeWidth={2.3} color="var(--turf-deep)" />
+              </div>
+              <div>
+                <p className="h-mono" style={{ fontSize: '0.62rem', color: 'var(--grey-light)', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700 }}>{label}</p>
+                <p style={{ fontFamily: 'Inter', fontWeight: 800, fontSize: '1.6rem', color: 'var(--ink)', lineHeight: 1 }}>{value}</p>
+                <p style={{ fontFamily: 'Inter', fontSize: '0.74rem', color: 'var(--grey)', marginTop: 2 }}>{sub}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* MATCHES + PREDICTORS */}
       <section style={{ maxWidth: 1440, margin: '0 auto', padding: '1.5rem 1.5rem' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.25rem' }}>
@@ -405,6 +443,37 @@ export default function Home() {
               </Link>
             </div>
 
+            {/* News */}
+            <div style={{ background: 'var(--white)', border: '1.5px solid var(--chalk)', borderRadius: 6, padding: '1.25rem 1.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                <h3 style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: '1.05rem', color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Newspaper size={15} strokeWidth={2.3} color="var(--turf-deep)" /> News
+                </h3>
+                <Link to="/insights" style={{ fontFamily: 'Inter', fontSize: '0.74rem', fontWeight: 700, color: 'var(--turf-deep)' }}>
+                  All news →
+                </Link>
+              </div>
+              {news.length === 0 ? (
+                <p className="h-body" style={{ fontSize: '0.82rem', color: 'var(--grey-light)' }}>Loading headlines…</p>
+              ) : news.map((n, i) => (
+                <a key={n.id} href={n.link} target="_blank" rel="noreferrer" style={{
+                  display: 'flex', gap: '0.7rem',
+                  padding: '0.6rem 0',
+                  borderBottom: i < news.length - 1 ? '1px solid var(--surface-2)' : 'none',
+                  color: 'inherit',
+                }}>
+                  {n.image && (
+                    <img src={n.image} alt="" style={{
+                      width: 60, height: 44, objectFit: 'cover', borderRadius: 4, flexShrink: 0,
+                    }} />
+                  )}
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: '0.82rem', color: 'var(--ink)', lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{n.headline}</p>
+                  </div>
+                </a>
+              ))}
+            </div>
+
             {/* Rewards */}
             <div style={{
               position: 'relative', overflow: 'hidden',
@@ -427,7 +496,7 @@ export default function Home() {
                 <p style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: '1.15rem', color: 'var(--pitch)', marginTop: 6, marginBottom: '0.65rem', maxWidth: 200, lineHeight: 1.25 }}>
                   Win exciting prizes and bragging rights.
                 </p>
-                <Link to="/leaderboard" style={{
+                <Link to="/rewards" style={{
                   display: 'inline-flex', alignItems: 'center', gap: 6,
                   background: 'var(--turf)', color: 'var(--ink)',
                   padding: '0.55rem 1.1rem', borderRadius: 4,
