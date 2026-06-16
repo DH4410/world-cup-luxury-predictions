@@ -281,7 +281,7 @@ Update `server/.env` and Vercel vars as in Option A (with `COOKIE_SAMESITE=none`
 5. Add custom domain to Vercel / Pages project → point to `yourdomain.com`.
 6. `pm2 restart wc-auth wc-game` on the Pi, redeploy client. Done.
 
----
+---Hey im forcing a redeploy!
 
 ## Admin panel (`/dev`)
 
