@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { MATCHES } from '../data/mockData';
+import { MATCHES as MOCK_MATCHES, TEAMS as MOCK_TEAMS } from '../data/mockData';
+import { fetchMatches, fetchTeams, fetchStandings, fetchGroupsByLetter } from '../lib/wcApi';
 
 const AppContext = createContext(null);
 
@@ -9,6 +10,33 @@ export function AppProvider({ children }) {
   const [profile, setProfile] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [notification, setNotification] = useState(null);
+  const [matches, setMatches] = useState(MOCK_MATCHES);
+  const [teams, setTeams] = useState(MOCK_TEAMS);
+  const [standings, setStandings] = useState(null);
+  const [groupsByLetter, setGroupsByLetter] = useState(null);
+  const [dataReady, setDataReady] = useState(false);
+
+  // Load live WC 2026 data from worldcup26.ir (fall back silently to mocks on failure)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [m, t, s, g] = await Promise.all([
+          fetchMatches(), fetchTeams(), fetchStandings(), fetchGroupsByLetter(),
+        ]);
+        if (cancelled) return;
+        if (m?.length) setMatches(m);
+        if (t?.length) setTeams(t);
+        if (s) setStandings(s);
+        if (g) setGroupsByLetter(g);
+      } catch (e) {
+        console.warn('WC API failed, using mock data', e);
+      } finally {
+        if (!cancelled) setDataReady(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   // ─── notifications ────────────────────────────────────────
   function notify(message, type = 'success') {
@@ -81,7 +109,7 @@ export function AppProvider({ children }) {
     if (error) { notify(error.message, 'error'); return; }
 
     // award points if match already has a result
-    const match = MATCHES.find(m => m.id === matchId);
+    const match = matches.find(m => m.id === matchId);
     if (match?.status === 'completed' && match.result) {
       let pts = 0;
       if (pred.homeScore === match.result.homeScore && pred.awayScore === match.result.awayScore) pts += 5;
@@ -188,7 +216,7 @@ export function AppProvider({ children }) {
       createRoom, joinRoom, getRooms, getRoomPredictions,
       getLeaderboard,
       notification, notify,
-      matches: MATCHES,
+      matches, teams, standings, groupsByLetter, dataReady,
     }}>
       {children}
     </AppContext.Provider>

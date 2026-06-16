@@ -4,17 +4,25 @@
 
 /* ── Design tokens ───────────────────────────────────── */
 :root {
-  --black:       #111111;
-  --black-2:     #222222;
-  --grey:        #555555;
-  --grey-light:  #AAAAAA;
-  --lime:        #C8FF00;
-  --lime-dark:   #A6D400;
-  --lime-faint:  rgba(200,255,0,0.12);
+  --black:       #14201A;
+  --black-2:     #2A332E;
+  --grey:        #56655C;
+  --grey-light:  #9AA597;
+  --lime:        #B6E84B;
+  --lime-dark:   #4F6E1B;
+  --lime-faint:  rgba(182,232,75,0.16);
   --white:       #FFFFFF;
-  --surface:     #F5F4F1;
-  --surface-2:   #E8E8E5;
-  --surface-3:   #DEDEDB;
+  --surface:     #F5F8EC;
+  --surface-2:   #E8EFD7;
+  --surface-3:   #D8E2C6;
+
+  /* Pitch system */
+  --pitch:       #F5F8EC;
+  --turf:        #B6E84B;
+  --turf-deep:   #4F6E1B;
+  --chalk:       #D8E2C6;
+  --ink:         #14201A;
+  --card-yellow: #FBC95A;
 
   --r-sm:  6px;
   --r-md:  12px;
@@ -39,11 +47,46 @@
     font-family: 'Barlow', system-ui, sans-serif;
     line-height: 1.5;
   }
-  #root { min-height: 100vh; display: flex; flex-direction: column; }
-  a { text-decoration: none; color: inherit; }
-  button { font-family: inherit; }
-  img { display: block; }
 }
+
+/* ── Home-page typography roles (Matchday Programme) ──── */
+.h-display {
+  font-family: 'Archivo Black', 'Inter', system-ui, sans-serif;
+  font-weight: 900;
+  letter-spacing: -0.015em;
+  line-height: 0.95;
+  text-transform: none;
+}
+.h-body {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-weight: 500;
+  line-height: 1.55;
+}
+.h-mono {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.h-eyebrow {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+/* Dotted chalk touchline */
+.touchline {
+  height: 1.5px;
+  background-image: linear-gradient(to right, var(--chalk) 50%, transparent 50%);
+  background-size: 8px 1.5px;
+  background-repeat: repeat-x;
+  border: none;
+}
+#root { min-height: 100vh; display: flex; flex-direction: column; }
+a { text-decoration: none; color: inherit; }
+button { font-family: inherit; }
+img { display: block; }
 
 /* ── Animations ──────────────────────────────────────── */
 @keyframes fadeUp {
@@ -66,6 +109,38 @@
 .anim-d2 { animation-delay: 0.16s; }
 .anim-d3 { animation-delay: 0.24s; }
 .anim-d4 { animation-delay: 0.32s; }
+.anim-d5 { animation-delay: 0.4s; }
+
+@keyframes dd-pop {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes slideDown {
+  from { opacity: 0; max-height: 0; transform: translateY(-6px); }
+  to   { opacity: 1; max-height: 1200px; transform: translateY(0); }
+}
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+@keyframes floaty {
+  0%,100% { transform: translateY(0); }
+  50%     { transform: translateY(-6px); }
+}
+@keyframes spinSlow {
+  to { transform: rotate(360deg); }
+}
+.anim-slide-down { animation: slideDown 0.32s cubic-bezier(0.4,0,0.2,1) both; overflow: hidden; }
+.anim-float      { animation: floaty 4s ease-in-out infinite; }
+.shimmer {
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0) 100%);
+  background-size: 800px 100%;
+  animation: shimmer 1.6s infinite linear;
+}
+.lift {
+  transition: transform 0.22s cubic-bezier(0.2,0.7,0.3,1), box-shadow 0.22s ease;
+}
+.lift:hover { transform: translateY(-3px); box-shadow: 0 18px 40px rgba(20,32,26,0.12); }
 
 /* ── Typography ──────────────────────────────────────── */
 .display {

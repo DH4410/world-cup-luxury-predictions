@@ -7,6 +7,7 @@ import AuthModal from './AuthModal';
 const NAV = [
   { to: '/',            label: 'Home' },
   { to: '/predict',     label: 'Predict' },
+  { to: '/predictions', label: 'All Predictions' },
   { to: '/groups',      label: 'Groups' },
   { to: '/schedule',    label: 'Schedule' },
   { to: '/rooms',       label: 'Rooms' },
@@ -19,7 +20,7 @@ export default function Header() {
   const [showAuth, setShowAuth] = useState(false);
   const { pathname } = useLocation();
 
-  const active = (p) => p === '/' ? pathname === '/' : pathname.startsWith(p);
+  const active = (p) => p === '/' ? pathname === '/' : (p === '/predict' ? pathname === '/predict' : pathname.startsWith(p));
 
   return (
     <>
@@ -29,7 +30,7 @@ export default function Header() {
         position: 'sticky', top: 0, zIndex: 40,
         backdropFilter: 'blur(8px)',
       }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 1.25rem', display: 'flex', alignItems: 'center', gap: '1.5rem', height: 60 }}>
+        <div style={{ maxWidth: 1440, margin: '0 auto', padding: '0 1.5rem', display: 'flex', alignItems: 'center', gap: '1.5rem', height: 60 }}>
 
           {/* Logo */}
           <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>

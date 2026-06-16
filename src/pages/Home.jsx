@@ -1,448 +1,499 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, Clock, MapPin, ChevronRight } from 'lucide-react';
+import { ArrowRight, ChevronRight, Target, Trophy, BarChart3 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useState, useEffect, useMemo } from 'react';
-import { TEAMS, MATCHES, flagUrl } from '../data/mockData';
+import { PLAYERS } from '../data/mockData';
+import { fetchUpcoming, fetchNextFeatured } from '../lib/espnApi';
+import CustomDropdown from '../components/CustomDropdown';
 
 const HERO_IMAGES = [
-  'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=1920&q=80',
-  'https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?w=1920&q=80',
-  'https://images.unsplash.com/photo-1489944440615-453fc2b6a9a9?w=1920&q=80',
-  'https://images.unsplash.com/photo-1518604666860-9ed391f76460?w=1920&q=80',
-  'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=1920&q=80',
+  'https://images.unsplash.com/photo-1551958219-acbc608c6377?w=2000&q=80',
+  'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=2000&q=80',
+  'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=2000&q=80',
+  'https://images.unsplash.com/photo-1543326727-cf6c39e8f84c?w=2000&q=80',
+  'https://images.unsplash.com/photo-1518604666860-9ed391f76460?w=2000&q=80',
 ];
+const PITCH_IMAGES = [
+  'https://images.unsplash.com/photo-1486286701208-1d58e9338013?w=1600&q=80',
+  'https://images.unsplash.com/photo-1459865264687-595d652de67e?w=1600&q=80',
+  'https://images.unsplash.com/photo-1517927033932-b3d18e61fb3a?w=1600&q=80',
+  'https://images.unsplash.com/photo-1614632537190-23e4146777db?w=1600&q=80',
+  'https://images.unsplash.com/photo-1602674809970-1e7196e08be5?w=1600&q=80',
+];
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 
-function getTeam(id) { return TEAMS.find(t => t.id === id); }
+function initials(name) { return name.split(' ').map(p => p[0]).slice(0, 2).join(''); }
 
-function fmtDate(iso) {
+function fmtKickoff(iso) {
   const d = new Date(iso);
-  return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
-}
-function fmtTime(iso) {
-  const d = new Date(iso);
-  return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) + ' ET';
-}
-
-function Flag({ code, size = 48 }) {
-  return (
-    <img
-      src={flagUrl(code)}
-      alt={code}
-      width={size}
-      height={Math.round(size * 0.67)}
-      className="flag-img"
-      style={{ width: size, height: 'auto', display: 'block' }}
-      onError={e => { e.target.style.display = 'none'; }}
-    />
-  );
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const day0 = new Date(d); day0.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((day0 - today) / 86400000);
+  const label =
+    diffDays === 0 ? 'Today' :
+    diffDays === 1 ? 'Tomorrow' :
+    d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  return `${label}, ${time}`;
 }
 
-function Countdown({ target }) {
+function TeamLogo({ src, alt, size = 28 }) {
+  if (!src) return <div style={{ width: size, height: size, borderRadius: '50%', background: 'var(--surface-2)' }} />;
+  return <img src={src} alt={alt} style={{ width: size, height: size, objectFit: 'contain' }} onError={e => { e.target.style.visibility = 'hidden'; }} />;
+}
+
+function ScoreboardCountdown({ target }) {
   const [diff, setDiff] = useState(new Date(target) - Date.now());
   useEffect(() => {
     const t = setInterval(() => setDiff(new Date(target) - Date.now()), 1000);
     return () => clearInterval(t);
   }, [target]);
-  if (diff <= 0) return <span style={{ fontFamily: 'Barlow', fontWeight: 700, color: 'var(--lime)', fontSize: '0.85rem' }}>LIVE NOW</span>;
-  const s = Math.floor(diff / 1000);
+  const s = Math.max(0, Math.floor(diff / 1000));
   const d = Math.floor(s / 86400);
   const h = Math.floor((s % 86400) / 3600);
   const m = Math.floor((s % 3600) / 60);
   const sc = s % 60;
+  const pad = v => String(v).padStart(2, '0');
+  const blocks = [['Days', d], ['Hrs', h], ['Mins', m], ['Secs', sc]];
+
   return (
-    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-      {[['d', d], ['h', h], ['m', m], ['s', sc]].map(([unit, val]) => (
-        <div key={unit} style={{ textAlign: 'center' }}>
-          <div className="display" style={{ fontSize: 'clamp(1.75rem, 5vw, 2.75rem)', color: 'var(--lime)', lineHeight: 1 }}>
-            {String(val).padStart(2, '0')}
-          </div>
-          <div className="caps" style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.6rem' }}>{unit}</div>
+    <div style={{
+      display: 'inline-flex', alignItems: 'stretch',
+      background: 'rgba(20,32,26,0.92)', color: 'var(--pitch)',
+      borderRadius: 6, overflow: 'hidden',
+      backdropFilter: 'blur(8px)',
+      boxShadow: '0 12px 40px rgba(20,32,26,0.25)',
+    }}>
+      <div style={{ padding: '0.9rem 1.1rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', background: 'rgba(79,110,27,0.65)' }}>
+        <span style={{ fontFamily: 'Inter', fontWeight: 600, fontSize: '0.66rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--turf)' }}>Kickoff in</span>
+        <span style={{ fontFamily: 'Inter', fontWeight: 500, fontSize: '0.62rem', color: 'rgba(245,248,236,0.65)', marginTop: 3 }}>Next fixture</span>
+      </div>
+      {blocks.map(([unit, val], i) => (
+        <div key={unit} style={{
+          padding: '0.9rem 1rem', minWidth: 66, textAlign: 'center',
+          borderLeft: i === 0 ? 'none' : '1px solid rgba(245,248,236,0.12)',
+          display: 'flex', flexDirection: 'column', justifyContent: 'center',
+        }}>
+          <span className="h-mono" style={{ fontSize: '1.7rem', fontWeight: 700, lineHeight: 1, color: 'var(--turf)' }}>{pad(val)}</span>
+          <span style={{ fontFamily: 'Inter', fontWeight: 500, fontSize: '0.62rem', color: 'rgba(245,248,236,0.55)', marginTop: 5, letterSpacing: '0.04em' }}>{unit}</span>
         </div>
       ))}
     </div>
   );
 }
 
+const SPORT_TABS = ['All', 'World Cup', 'Football', 'Basketball', 'Tennis', 'Cricket'];
+
 export default function Home() {
   const { getLeaderboard } = useApp();
   const [leaders, setLeaders] = useState([]);
+  const [tab, setTab] = useState('All');
+  const [matches, setMatches] = useState([]);
+  const [featured, setFeatured] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const heroImg = useMemo(() => HERO_IMAGES[Math.floor(Math.random() * HERO_IMAGES.length)], []);
-  const featured = MATCHES.find(m => m.featured);
-  const homeTeam = featured ? getTeam(featured.homeTeam) : null;
-  const awayTeam = featured ? getTeam(featured.awayTeam) : null;
-  const upcomingMatches = MATCHES.filter(m => m.status === 'upcoming').slice(0, 6);
-  const completedMatches = MATCHES.filter(m => m.status === 'completed').slice(0, 3);
+  const allPlayers = useMemo(() => Object.values(PLAYERS).flat(), []);
+  const [homeScore, setHomeScore] = useState(2);
+  const [awayScore, setAwayScore] = useState(1);
+  const [motm, setMotm] = useState('Kylian Mbappé');
+  const [scorer, setScorer] = useState('Lionel Messi');
+  const [assister, setAssister] = useState('Lamine Yamal');
+  const heroBg = useMemo(() => pick(HERO_IMAGES), []);
+  const pitchBg = useMemo(() => pick(PITCH_IMAGES), []);
 
-  useEffect(() => { getLeaderboard().then(d => setLeaders(d.slice(0, 3))); }, []);
+  useEffect(() => { getLeaderboard().then(d => setLeaders(d.slice(0, 5))); }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [upcoming, next] = await Promise.all([
+          fetchUpcoming(4),
+          fetchNextFeatured(),
+        ]);
+        if (cancelled) return;
+        setMatches(upcoming);
+        setFeatured(next);
+      } catch (err) {
+        console.error('ESPN fetch failed', err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   return (
-    <main>
+    <main style={{ background: 'var(--pitch)', color: 'var(--ink)' }}>
 
-      {/* ── HERO ─────────────────────────────────────── */}
+      {/* HERO */}
       <section style={{
         position: 'relative', overflow: 'hidden',
-        minHeight: '92vh', display: 'flex', flexDirection: 'column', justifyContent: 'center',
-        background: '#0a0a0a',
+        borderBottom: '1.5px solid var(--chalk)',
+        minHeight: 620,
       }}>
-        <img src={heroImg} alt="" style={{
-          position: 'absolute', inset: 0, width: '100%', height: '100%',
-          objectFit: 'cover', opacity: 0.6,
+        {/* Blurred photographic background */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          backgroundImage: `url(${heroBg})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          filter: 'blur(14px) saturate(1.05)',
+          transform: 'scale(1.1)',
         }} />
         <div style={{
           position: 'absolute', inset: 0,
-          background: 'linear-gradient(120deg, rgba(0,0,0,0.72) 35%, rgba(0,0,0,0.2) 100%)',
+          background: 'linear-gradient(105deg, rgba(245,248,236,0.96) 0%, rgba(245,248,236,0.86) 45%, rgba(245,248,236,0.55) 75%, rgba(245,248,236,0.25) 100%)',
         }} />
 
-        <div style={{ position: 'relative', maxWidth: 1200, margin: '0 auto', padding: '5rem 1.25rem 4rem', width: '100%' }}>
-          <span className="badge badge-lime anim-fade-up" style={{ marginBottom: '1.25rem', display: 'inline-flex' }}>
-            ⚽ FIFA World Cup 2026 — USA · Canada · Mexico
-          </span>
-
-          <h1 className="display anim-fade-up anim-d1" style={{
-            fontSize: 'clamp(4rem, 13vw, 9.5rem)',
-            color: '#fff',
-            marginBottom: '0.1em', lineHeight: 0.9,
-          }}>
-            Predict.<br />
-            <span style={{ color: 'var(--lime)' }}>Compete.</span><br />
-            Win.
-          </h1>
-
-          <p className="anim-fade-up anim-d2" style={{
-            fontFamily: 'Barlow, sans-serif', fontWeight: 500,
-            fontSize: 'clamp(1rem, 2.5vw, 1.15rem)',
-            color: 'rgba(255,255,255,0.7)',
-            maxWidth: 440, marginTop: '1.25rem', marginBottom: '2rem', lineHeight: 1.65,
-          }}>
-            Pick exact scores, call the goalscorers, and go head-to-head with your mates — who really knows their football?
-          </p>
-
-          <div className="anim-fade-up anim-d3" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-            <Link to="/predict" className="btn btn-lime" style={{ fontSize: '0.95rem', padding: '0.75rem 1.75rem' }}>
-              Make a Prediction <ArrowRight size={15} strokeWidth={2.5} />
-            </Link>
-            <Link to="/rooms" className="btn btn-outline-light" style={{ fontSize: '0.95rem', padding: '0.75rem 1.75rem' }}>
-              Play with Friends
-            </Link>
-          </div>
-
-          {/* Live next match countdown */}
-          {featured && (
-            <div className="anim-fade-up anim-d4" style={{ marginTop: '3rem', display: 'inline-flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <p className="caps" style={{ color: 'rgba(255,255,255,0.4)', marginBottom: '0.25rem' }}>Next big match</p>
-              <Countdown target={featured.kickoff} />
-              <p style={{ fontFamily: 'Barlow', fontSize: '0.85rem', fontWeight: 600, color: 'rgba(255,255,255,0.5)', marginTop: '0.15rem' }}>
-                {homeTeam?.name} vs {awayTeam?.name} · {fmtDate(featured.kickoff)}
-              </p>
-            </div>
-          )}
-        </div>
-
-        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 80, background: 'linear-gradient(to bottom, transparent, var(--surface))' }} />
-      </section>
-
-      {/* ── STATS BAR ─────────────────────────────────── */}
-      <div style={{ background: 'var(--black)', borderTop: '1px solid #222' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 1.25rem', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1px', background: '#1e1e1e' }}>
-          {[
-            { num: '104', label: 'Matches', emoji: '⚽' },
-            { num: '48',  label: 'Teams',   emoji: '🏳️' },
-            { num: '3',   label: 'Host Nations', emoji: '🌎' },
-            { num: '11',  label: 'Stadiums', emoji: '🏟️' },
-          ].map(s => (
-            <div key={s.label} style={{ background: 'var(--black)', padding: '1.1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <span style={{ fontSize: '1.4rem' }}>{s.emoji}</span>
-              <div>
-                <span className="display" style={{ fontSize: '1.6rem', color: 'var(--lime)', display: 'block', lineHeight: 1 }}>{s.num}</span>
-                <span style={{ fontFamily: 'Barlow', fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{s.label}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── BIG MATCH ─────────────────────────────────── */}
-      {featured && homeTeam && awayTeam && (
-        <section style={{ background: 'var(--white)', borderBottom: '1.5px solid var(--surface-3)', padding: '3.5rem 0' }}>
-          <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 1.25rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem' }}>
-              <h2 className="display" style={{ fontSize: '2rem' }}>⚡ Big Match</h2>
-              <span className="badge badge-lime">Coming Up</span>
+        <div style={{
+          position: 'relative',
+          maxWidth: 1440, margin: '0 auto',
+          padding: '4.5rem 1.5rem 4rem',
+          display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: '2.5rem', alignItems: 'center',
+        }}>
+          <div>
+            <div className="anim-fade-up" style={{ fontFamily: 'Inter', fontWeight: 600, fontSize: '0.72rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--turf-deep)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ display: 'inline-block', width: 28, height: 1.5, background: 'var(--turf-deep)' }} />
+              FIFA World Cup 2026
             </div>
 
-            <div style={{
-              background: 'var(--black)',
-              borderRadius: 'var(--r-xl)',
-              overflow: 'hidden',
-              boxShadow: '0 8px 40px rgba(0,0,0,0.18)',
+            <h1 className="h-display anim-fade-up anim-d1" style={{
+              fontSize: 'clamp(2.75rem, 7vw, 5rem)',
+              color: 'var(--ink)',
+              marginBottom: '1.25rem',
             }}>
-              {/* Match header */}
-              <div style={{
-                background: 'linear-gradient(135deg, #1a1a1a 0%, #111 100%)',
-                padding: 'clamp(1.5rem, 4vw, 2.5rem) clamp(1.5rem, 4vw, 3rem)',
-                display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: '1rem',
+              Predict the cup.<br />
+              Top the table.
+            </h1>
+
+            <p className="h-body anim-fade-up anim-d2" style={{
+              fontSize: '1.05rem', color: 'var(--grey)', maxWidth: 460, marginBottom: '2rem',
+            }}>
+              Call the scores, pick the scorers, and stack points across the whole tournament. Free to play, week by week.
+            </p>
+
+            <div className="anim-fade-up anim-d3" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '2.25rem' }}>
+              <Link to="/predict" style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                background: 'var(--ink)', color: 'var(--pitch)',
+                padding: '0.95rem 1.7rem', borderRadius: 4,
+                fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '0.92rem',
               }}>
-                {/* Home */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
-                  <div style={{ width: 80, height: 54, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Flag code={homeTeam.flagCode} size={80} />
+                Make a prediction <ArrowRight size={15} strokeWidth={2.5} />
+              </Link>
+              <Link to="/schedule" style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                background: 'rgba(255,255,255,0.7)', color: 'var(--ink)',
+                padding: '0.95rem 1.7rem', borderRadius: 4,
+                fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '0.92rem',
+                border: '1.5px solid var(--ink)',
+                backdropFilter: 'blur(4px)',
+              }}>
+                View the bracket
+              </Link>
+            </div>
+
+            {featured && <div className="anim-fade-up anim-d4"><ScoreboardCountdown target={featured.kickoff} /></div>}
+          </div>
+
+          {/* Hero card: featured match photo */}
+          <div style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
+            <div style={{
+              width: '100%', maxWidth: 440, aspectRatio: '4 / 5',
+              borderRadius: 10, overflow: 'hidden',
+              boxShadow: '0 30px 60px rgba(20,32,26,0.25)',
+              position: 'relative',
+            }}>
+              <img src={pitchBg} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(20,32,26,0.85) 0%, rgba(20,32,26,0.3) 50%, rgba(20,32,26,0.1) 100%)' }} />
+
+              {featured && featured.home && featured.away && (
+                <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '1.5rem' }}>
+                  <span style={{ fontFamily: 'Inter', fontWeight: 600, fontSize: '0.68rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--turf)' }}>
+                    {featured.group ? `Group ${featured.group}` : 'Next up'} · {featured.venue || featured.city || ''}
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.6rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flex: 1 }}>
+                      <TeamLogo src={featured.home.logo} alt={featured.home.name} size={38} />
+                      <span style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: '1.05rem', color: 'var(--pitch)' }}>{featured.home.name}</span>
+                    </div>
+                    <span className="h-mono" style={{ fontSize: '0.95rem', color: 'rgba(245,248,236,0.55)' }}>vs</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flex: 1, justifyContent: 'flex-end' }}>
+                      <span style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: '1.05rem', color: 'var(--pitch)', textAlign: 'right' }}>{featured.away.name}</span>
+                      <TeamLogo src={featured.away.logo} alt={featured.away.name} size={38} />
+                    </div>
                   </div>
-                  <p className="display" style={{ color: '#fff', fontSize: 'clamp(1.25rem, 4vw, 2rem)', textAlign: 'center' }}>
-                    {homeTeam.name}
+                  <p className="h-mono" style={{ marginTop: '0.65rem', fontSize: '0.78rem', color: 'rgba(245,248,236,0.7)' }}>
+                    {fmtKickoff(featured.kickoff)} {featured.broadcast ? `· ${featured.broadcast}` : ''}
                   </p>
-                  <span className="caps" style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.65rem' }}>Group {homeTeam.group}</span>
                 </div>
-
-                {/* VS */}
-                <div style={{ textAlign: 'center', padding: '0 0.5rem' }}>
-                  <p className="display" style={{ fontSize: 'clamp(2.5rem, 7vw, 5rem)', color: 'var(--lime)', lineHeight: 1 }}>VS</p>
-                  <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.35rem', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'rgba(255,255,255,0.45)' }}>
-                      <Clock size={11} strokeWidth={2} />
-                      <span style={{ fontFamily: 'Barlow', fontSize: '0.78rem', fontWeight: 600, whiteSpace: 'nowrap' }}>{fmtTime(featured.kickoff)}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'rgba(255,255,255,0.45)' }}>
-                      <MapPin size={11} strokeWidth={2} />
-                      <span style={{ fontFamily: 'Barlow', fontSize: '0.78rem', fontWeight: 600, whiteSpace: 'nowrap' }}>{featured.city}</span>
-                    </div>
-                    <div style={{ marginTop: '0.25rem', background: 'rgba(200,255,0,0.12)', border: '1px solid rgba(200,255,0,0.3)', borderRadius: 4, padding: '0.2rem 0.5rem' }}>
-                      <span style={{ fontFamily: 'Barlow', fontSize: '0.72rem', fontWeight: 700, color: 'var(--lime)', whiteSpace: 'nowrap' }}>{fmtDate(featured.kickoff)}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Away */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
-                  <div style={{ width: 80, height: 54, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Flag code={awayTeam.flagCode} size={80} />
-                  </div>
-                  <p className="display" style={{ color: '#fff', fontSize: 'clamp(1.25rem, 4vw, 2rem)', textAlign: 'center' }}>
-                    {awayTeam.name}
-                  </p>
-                  <span className="caps" style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.65rem' }}>Group {awayTeam.group}</span>
-                </div>
-              </div>
-
-              {/* Match footer */}
-              <div style={{ background: '#0e0e0e', padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
-                <p style={{ fontFamily: 'Barlow', fontSize: '0.85rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)' }}>
-                  📍 {featured.stadium}, {featured.city}
-                </p>
-                <div style={{ display: 'flex', gap: '0.65rem' }}>
-                  <Link to="/predict" className="btn btn-lime" style={{ fontSize: '0.85rem', padding: '0.55rem 1.25rem' }}>Predict Now</Link>
-                  <Link to="/rooms" className="btn btn-outline-light" style={{ fontSize: '0.85rem', padding: '0.55rem 1.25rem' }}>Create Room</Link>
-                </div>
-              </div>
+              )}
             </div>
           </div>
-        </section>
-      )}
-
-      {/* ── UPCOMING MATCHES GRID ─────────────────────── */}
-      <section style={{ maxWidth: 1200, margin: '0 auto', padding: '4rem 1.25rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-          <div>
-            <p className="caps" style={{ color: 'var(--grey-light)', marginBottom: '0.25rem' }}>Group Stage</p>
-            <h2 className="display" style={{ fontSize: 'clamp(1.75rem, 5vw, 2.75rem)' }}>Upcoming Fixtures</h2>
-          </div>
-          <Link to="/schedule" className="btn btn-outline" style={{ padding: '0.5rem 1.1rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 4 }}>
-            Full Schedule <ChevronRight size={13} strokeWidth={2.5} />
-          </Link>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.875rem' }}>
-          {upcomingMatches.map(m => {
-            const ht = getTeam(m.homeTeam);
-            const at = getTeam(m.awayTeam);
-            return (
-              <Link key={m.id} to="/predict" style={{ textDecoration: 'none' }}>
-                <div className="card" style={{ padding: '1.1rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', cursor: 'pointer', transition: 'transform 0.15s, box-shadow 0.15s' }}
-                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.1)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = ''; }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span className="caps" style={{ color: 'var(--grey-light)', fontSize: '0.65rem' }}>{m.stage}</span>
-                    <span className="caps" style={{ color: 'var(--grey-light)', fontSize: '0.65rem' }}>{fmtDate(m.kickoff)}</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
-                      <Flag code={ht?.flagCode} size={26} />
-                      <span style={{ fontFamily: 'Barlow', fontWeight: 700, fontSize: '0.92rem', color: 'var(--black)' }}>{ht?.name}</span>
-                    </div>
-                    <span className="display" style={{ fontSize: '1rem', color: 'var(--grey-light)', flexShrink: 0 }}>VS</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, justifyContent: 'flex-end' }}>
-                      <span style={{ fontFamily: 'Barlow', fontWeight: 700, fontSize: '0.92rem', color: 'var(--black)', textAlign: 'right' }}>{at?.name}</span>
-                      <Flag code={at?.flagCode} size={26} />
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--grey-light)' }}>
-                    <MapPin size={10} strokeWidth={2} />
-                    <span style={{ fontFamily: 'Barlow', fontSize: '0.78rem', fontWeight: 600 }}>{m.city} · {fmtTime(m.kickoff)}</span>
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
         </div>
       </section>
 
-      {/* ── RESULTS ───────────────────────────────────── */}
-      {completedMatches.length > 0 && (
-        <section style={{ background: 'var(--white)', borderTop: '1.5px solid var(--surface-3)', borderBottom: '1.5px solid var(--surface-3)', padding: '3rem 0' }}>
-          <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 1.25rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-              <h2 className="display" style={{ fontSize: '2rem' }}>Latest Results</h2>
-              <Link to="/schedule" className="btn btn-outline" style={{ padding: '0.5rem 1.1rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 4 }}>
-                All Results <ChevronRight size={13} strokeWidth={2.5} />
-              </Link>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-              {completedMatches.map(m => {
-                const ht = getTeam(m.homeTeam);
-                const at = getTeam(m.awayTeam);
-                return (
-                  <div key={m.id} style={{
-                    display: 'flex', alignItems: 'center',
-                    gap: '1rem', padding: '0.875rem 1.25rem',
-                    background: 'var(--surface)', border: '1.5px solid var(--surface-3)',
-                    borderRadius: 'var(--r-md)', flexWrap: 'wrap',
-                  }}>
-                    <span className="caps" style={{ color: 'var(--grey-light)', fontSize: '0.65rem', minWidth: 70 }}>{m.stage}</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: 100 }}>
-                      <Flag code={ht?.flagCode} size={22} />
-                      <span style={{ fontFamily: 'Barlow', fontWeight: 700, fontSize: '0.88rem', color: 'var(--black)' }}>{ht?.name}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span className="display" style={{ fontSize: '1.5rem', minWidth: 50, textAlign: 'center' }}>
-                        {m.result.homeScore}–{m.result.awayScore}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: 100, justifyContent: 'flex-end' }}>
-                      <span style={{ fontFamily: 'Barlow', fontWeight: 700, fontSize: '0.88rem', color: 'var(--black)' }}>{at?.name}</span>
-                      <Flag code={at?.flagCode} size={22} />
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap' }}>
-                      <span style={{ fontFamily: 'Barlow', fontSize: '0.78rem', fontWeight: 600, color: 'var(--grey)', whiteSpace: 'nowrap' }}>⚽ {m.result.scorer}</span>
-                      <span style={{ fontFamily: 'Barlow', fontSize: '0.78rem', fontWeight: 600, color: 'var(--grey)', whiteSpace: 'nowrap' }}>🏅 {m.result.motm}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ── HOW TO PLAY ───────────────────────────────── */}
-      <section style={{ background: 'var(--black)', padding: '4rem 0' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 1.25rem' }}>
-          <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-            <p className="caps" style={{ color: 'rgba(255,255,255,0.35)', marginBottom: '0.4rem' }}>How it works</p>
-            <h2 className="display" style={{ fontSize: 'clamp(2rem, 5vw, 3.5rem)', color: '#fff' }}>Three Steps to Glory</h2>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem' }}>
+      {/* PREDICT EARN COMPETE */}
+      <section style={{ maxWidth: 1440, margin: '0 auto', padding: '2.5rem 1.5rem 1rem' }}>
+        <div style={{ background: 'var(--white)', border: '1.5px solid var(--chalk)', borderRadius: 6, padding: '2rem 2.25rem' }}>
+          <h2 style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: '1rem', letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink)', textAlign: 'center', marginBottom: '1.75rem' }}>
+            Predict. Earn. Compete.
+          </h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.75rem' }}>
             {[
-              { step: '01', emoji: '🎯', title: 'Pick Your Scores', desc: 'Predict exact scorelines, goalscorers, assists, and man of the match for every fixture.', link: '/predict' },
-              { step: '02', emoji: '👥', title: 'Challenge Your Mates', desc: 'Set up a private room, share the code, and build your own mini-league leaderboard.', link: '/rooms' },
-              { step: '03', emoji: '🏆', title: 'Climb the Table', desc: 'Earn 5 pts for exact scores, 2 for correct results, and more. The top predictor takes glory.', link: '/leaderboard' },
-            ].map((f, i) => (
-              <Link key={f.step} to={f.link} style={{ textDecoration: 'none' }}>
-                <div style={{
-                  border: '1.5px solid #222', borderRadius: 'var(--r-xl)',
-                  padding: '2rem', height: '100%',
-                  transition: 'border-color 0.2s, background 0.2s',
-                }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--lime-dark)'; e.currentTarget.style.background = '#161616'; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#222'; e.currentTarget.style.background = 'transparent'; }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
-                    <span style={{ fontSize: '2rem' }}>{f.emoji}</span>
-                    <span className="display" style={{ fontSize: '3.5rem', color: '#1e1e1e', lineHeight: 1 }}>{f.step}</span>
-                  </div>
-                  <p className="display" style={{ fontSize: '1.5rem', color: '#fff', marginBottom: '0.6rem' }}>{f.title}</p>
-                  <p style={{ fontFamily: 'Barlow', fontSize: '0.9rem', color: 'rgba(255,255,255,0.5)', lineHeight: 1.6 }}>{f.desc}</p>
-                  <p className="caps" style={{ color: 'var(--lime-dark)', marginTop: '1.25rem', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.7rem' }}>
-                    Get going <ArrowRight size={11} strokeWidth={3} />
-                  </p>
+              { icon: Target,    title: 'Make predictions', desc: 'Predict on scores, goal scorers, assisters and more.' },
+              { icon: Trophy,    title: 'Earn points',      desc: 'Get points for correct predictions and bonuses.' },
+              { icon: BarChart3, title: 'Climb the leaderboard', desc: 'Compete with others and win exciting rewards.' },
+            ].map(({ icon: Icon, title, desc }) => (
+              <div key={title} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.9rem' }}>
+                <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--lime-faint)', border: '1.5px solid var(--turf)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Icon size={20} strokeWidth={2.2} color="var(--turf-deep)" />
                 </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── TOP PREDICTORS ────────────────────────────── */}
-      <section style={{ maxWidth: 1200, margin: '0 auto', padding: '4rem 1.25rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-          <div>
-            <p className="caps" style={{ color: 'var(--grey-light)', marginBottom: '0.25rem' }}>🏆 Who's winning?</p>
-            <h2 className="display" style={{ fontSize: 'clamp(1.75rem, 5vw, 2.75rem)' }}>Top Predictors</h2>
-          </div>
-          <Link to="/leaderboard" className="btn btn-outline" style={{ padding: '0.5rem 1.1rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 4 }}>
-            Full Rankings <ArrowRight size={13} />
-          </Link>
-        </div>
-
-        {leaders.length === 0 ? (
-          <div className="card" style={{ padding: '3rem', textAlign: 'center' }}>
-            <p style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🎯</p>
-            <p className="display" style={{ fontSize: '2rem', color: 'var(--grey-light)', marginBottom: '0.5rem' }}>No players yet</p>
-            <p style={{ fontFamily: 'Barlow', color: 'var(--grey-light)', marginBottom: '1.25rem' }}>Be first to sign up and make your mark!</p>
-            <Link to="/predict" className="btn btn-lime" style={{ display: 'inline-flex' }}>
-              Start Predicting <ArrowRight size={14} />
-            </Link>
-          </div>
-        ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
-            {leaders.map((u, i) => (
-              <div key={u.id} className="card-flat anim-fade-up" style={{
-                padding: '1.5rem', animationDelay: `${i * 0.1}s`,
-                borderColor: i === 0 ? 'var(--lime-dark)' : 'var(--surface-3)',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                  <span className="display" style={{
-                    fontSize: '2.5rem',
-                    color: i === 0 ? 'var(--lime-dark)' : i === 1 ? 'var(--grey-light)' : '#CD7F32',
-                  }}>#{i + 1}</span>
-                  {i === 0 && <span className="badge badge-lime">🥇 Leader</span>}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                  <div style={{
-                    width: 38, height: 38, borderRadius: '50%',
-                    background: i === 0 ? 'var(--lime)' : 'var(--surface-2)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontFamily: 'Barlow', fontWeight: 800, fontSize: '0.85rem',
-                    color: i === 0 ? 'var(--black)' : 'var(--grey)',
-                  }}>{u.avatar_initials}</div>
-                  <div>
-                    <p style={{ fontFamily: 'Barlow', fontWeight: 700, fontSize: '0.95rem', color: 'var(--black)' }}>{u.username}</p>
-                    <p className="caps" style={{ color: 'var(--grey-light)' }}>{u.total_points} pts</p>
-                  </div>
+                <div>
+                  <p style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: '1rem', color: 'var(--ink)', marginBottom: 4 }}>{title}</p>
+                  <p className="h-body" style={{ fontSize: '0.86rem', color: 'var(--grey)' }}>{desc}</p>
                 </div>
               </div>
             ))}
           </div>
-        )}
+        </div>
       </section>
 
-      {/* ── POINTS SCORING ────────────────────────────── */}
-      <div style={{ background: 'var(--black)', padding: '1.5rem 0', borderTop: '1px solid #1e1e1e' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 1.25rem', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1px', background: '#1e1e1e' }}>
-          {[
-            { pts: 5, label: 'Exact score', emoji: '🎯' },
-            { pts: 2, label: 'Correct result', emoji: '✅' },
-            { pts: 2, label: 'Goalscorer', emoji: '⚽' },
-            { pts: 1, label: 'Assist / MOTM', emoji: '🏅' },
-          ].map(item => (
-            <div key={item.label} style={{ background: 'var(--black)', padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <span style={{ fontSize: '1.3rem' }}>{item.emoji}</span>
-              <div>
-                <span className="display" style={{ fontSize: '1.6rem', color: 'var(--lime)', display: 'block', lineHeight: 1 }}>{item.pts}pts</span>
-                <span style={{ fontFamily: 'Barlow', fontSize: '0.72rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{item.label}</span>
+      {/* MATCHES + PREDICTORS */}
+      <section style={{ maxWidth: 1440, margin: '0 auto', padding: '1.5rem 1.5rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.25rem' }}>
+
+          {/* Fixtures */}
+          <div style={{ background: 'var(--white)', border: '1.5px solid var(--chalk)', borderRadius: 6, padding: '1.5rem 1.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h3 style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: '1.1rem', color: 'var(--ink)' }}>Upcoming matches</h3>
+              <Link to="/schedule" style={{ fontFamily: 'Inter', fontSize: '0.82rem', fontWeight: 600, color: 'var(--turf-deep)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                View all matches <ChevronRight size={13} strokeWidth={2.5} />
+              </Link>
+            </div>
+
+            <div style={{ display: 'flex', gap: '1.5rem', borderBottom: '1.5px solid var(--chalk)', margin: '1rem 0 0.25rem', overflowX: 'auto' }}>
+              {SPORT_TABS.map(t => (
+                <button key={t} onClick={() => setTab(t)} style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  padding: '0.7rem 0',
+                  fontFamily: 'Inter', fontWeight: 600, fontSize: '0.84rem',
+                  color: tab === t ? 'var(--ink)' : 'var(--grey-light)',
+                  borderBottom: tab === t ? '2.5px solid var(--turf)' : '2.5px solid transparent',
+                  marginBottom: '-1.5px', whiteSpace: 'nowrap',
+                }}>{t}</button>
+              ))}
+            </div>
+
+            <div>
+              {loading && (
+                <div style={{ padding: '2.5rem 0', textAlign: 'center', fontFamily: 'Inter', fontSize: '0.88rem', color: 'var(--grey-light)' }}>
+                  Loading fixtures from ESPN…
+                </div>
+              )}
+
+              {!loading && matches.length === 0 && (
+                <div style={{ padding: '2.5rem 0', textAlign: 'center', fontFamily: 'Inter', fontSize: '0.88rem', color: 'var(--grey-light)' }}>
+                  No upcoming fixtures in range.
+                </div>
+              )}
+
+              {matches.map((m, idx) => (
+                <div key={m.id} style={{
+                  display: 'grid',
+                  gridTemplateColumns: '110px 1fr 28px 1fr auto',
+                  alignItems: 'center', gap: '0.9rem',
+                  padding: '1rem 0',
+                  borderBottom: idx < matches.length - 1 ? '1px solid var(--surface-2)' : 'none',
+                }}>
+                  <div>
+                    <p style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: '0.68rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--turf-deep)' }}>
+                      {m.group ? `Group ${m.group}` : 'World Cup'}
+                    </p>
+                    <p className="h-mono" style={{ fontSize: '0.74rem', color: 'var(--grey)', marginTop: 2 }}>{fmtKickoff(m.kickoff)}</p>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                    <TeamLogo src={m.home?.logo} alt={m.home?.name} size={26} />
+                    <span style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: '0.92rem', color: 'var(--ink)' }}>{m.home?.name}</span>
+                  </div>
+                  <span className="h-mono" style={{ fontSize: '0.78rem', color: 'var(--grey-light)', textAlign: 'center' }}>vs</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                    <TeamLogo src={m.away?.logo} alt={m.away?.name} size={26} />
+                    <span style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: '0.92rem', color: 'var(--ink)' }}>{m.away?.name}</span>
+                  </div>
+                  <Link to="/predict" style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                    background: 'var(--turf)', color: 'var(--ink)',
+                    padding: '0.55rem 1.1rem', borderRadius: 4,
+                    fontFamily: 'Inter', fontWeight: 700, fontSize: '0.78rem',
+                  }}>
+                    Predict now
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Sidebar */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+
+            <div style={{ background: 'var(--white)', border: '1.5px solid var(--chalk)', borderRadius: 6, padding: '1.5rem' }}>
+              <h3 style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: '1.05rem', color: 'var(--ink)', marginBottom: '1rem' }}>Top predictors</h3>
+
+              {leaders.length === 0 ? (
+                <p className="h-body" style={{ fontSize: '0.85rem', color: 'var(--grey-light)', padding: '1rem 0', textAlign: 'center' }}>No players yet. Be first.</p>
+              ) : (
+                <div>
+                  {leaders.map((u, i) => (
+                    <div key={u.id} style={{
+                      display: 'grid', gridTemplateColumns: '22px 30px 1fr auto',
+                      alignItems: 'center', gap: '0.7rem',
+                      padding: '0.7rem 0',
+                      borderBottom: i < leaders.length - 1 ? '1px solid var(--surface-2)' : 'none',
+                    }}>
+                      <span className="h-mono" style={{
+                        fontSize: '0.85rem', fontWeight: 700,
+                        color: i === 0 ? 'var(--ink)' : 'var(--grey-light)',
+                      }}>{i + 1}</span>
+                      <div style={{
+                        width: 26, height: 26, borderRadius: '50%',
+                        background: i === 0 ? 'var(--card-yellow)' : 'var(--surface-2)',
+                        border: '1.5px solid var(--chalk)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontFamily: 'Inter', fontWeight: 800, fontSize: '0.68rem',
+                        color: 'var(--ink)',
+                      }}>{u.avatar_initials}</div>
+                      <span style={{ fontFamily: 'Inter', fontWeight: 600, fontSize: '0.88rem', color: 'var(--ink)' }}>{u.username}</span>
+                      <span className="h-mono" style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--ink)' }}>{u.total_points.toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <Link to="/leaderboard" style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: '0.85rem',
+                fontFamily: 'Inter', fontSize: '0.82rem', fontWeight: 600, color: 'var(--turf-deep)',
+              }}>
+                View leaderboard <ChevronRight size={13} strokeWidth={2.5} />
+              </Link>
+            </div>
+
+            {/* Rewards */}
+            <div style={{
+              position: 'relative', overflow: 'hidden',
+              border: '1.5px solid var(--chalk)', borderRadius: 6, padding: '1.5rem',
+              minHeight: 200,
+            }}>
+              <div style={{
+                position: 'absolute', inset: 0,
+                backgroundImage: `url(https://images.unsplash.com/photo-1517466787929-bc90951d0974?w=900&q=80)`,
+                backgroundSize: 'cover', backgroundPosition: 'center',
+                filter: 'blur(2px) brightness(0.55)',
+                transform: 'scale(1.05)',
+              }} />
+              <div style={{
+                position: 'absolute', inset: 0,
+                background: 'linear-gradient(135deg, rgba(20,32,26,0.78) 0%, rgba(79,110,27,0.5) 100%)',
+              }} />
+              <div style={{ position: 'relative' }}>
+                <span style={{ fontFamily: 'Inter', fontWeight: 600, fontSize: '0.68rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--turf)' }}>Exclusive rewards</span>
+                <p style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: '1.15rem', color: 'var(--pitch)', marginTop: 6, marginBottom: '0.65rem', maxWidth: 200, lineHeight: 1.25 }}>
+                  Win exciting prizes and bragging rights.
+                </p>
+                <Link to="/leaderboard" style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  background: 'var(--turf)', color: 'var(--ink)',
+                  padding: '0.55rem 1.1rem', borderRadius: 4,
+                  fontFamily: 'Inter', fontWeight: 700, fontSize: '0.78rem',
+                }}>
+                  See rewards <ArrowRight size={12} strokeWidth={2.5} />
+                </Link>
               </div>
             </div>
-          ))}
+          </div>
+
         </div>
-      </div>
+      </section>
+
+      {/* WHAT CAN YOU PREDICT */}
+      <section style={{ maxWidth: 1440, margin: '0 auto', padding: '3rem 1.5rem 5rem' }}>
+        <h2 style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: 'clamp(1.5rem, 3.5vw, 2rem)', textAlign: 'center', color: 'var(--ink)', marginBottom: '2rem' }}>
+          What can you predict?
+        </h2>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '1.25rem' }}>
+
+          {/* Score / MOTM */}
+          <div style={{ background: 'var(--white)', border: '1.5px solid var(--chalk)', borderRadius: 6, padding: '1.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+              <p style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: '1.05rem', color: 'var(--ink)' }}>Score / MOTM</p>
+              <span className="h-mono" style={{ fontSize: '0.72rem', color: 'var(--turf-deep)', fontWeight: 700 }}>+5 pts</span>
+            </div>
+            <p className="h-body" style={{ fontSize: '0.85rem', color: 'var(--grey)', marginBottom: '1.1rem' }}>
+              Predict the full-time score and the Man of the Match.
+            </p>
+
+            <div style={{ background: 'var(--ink)', borderRadius: 4, padding: '0.85rem 1rem', display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: '0.5rem', marginBottom: '0.6rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <img src="https://a.espncdn.com/i/teamlogos/countries/500/arg.png" alt="ARG" style={{ width: 22, height: 22, objectFit: 'contain' }} />
+                <input type="number" min="0" max="20" value={homeScore} onChange={e => setHomeScore(+e.target.value)} className="h-mono"
+                  style={{ width: 44, textAlign: 'center', fontSize: '1.6rem', fontWeight: 700, background: 'transparent', border: 'none', outline: 'none', color: 'var(--turf)' }} />
+              </div>
+              <span className="h-mono" style={{ fontSize: '1.3rem', color: 'rgba(245,248,236,0.4)' }}>:</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end' }}>
+                <input type="number" min="0" max="20" value={awayScore} onChange={e => setAwayScore(+e.target.value)} className="h-mono"
+                  style={{ width: 44, textAlign: 'center', fontSize: '1.6rem', fontWeight: 700, background: 'transparent', border: 'none', outline: 'none', color: 'var(--turf)' }} />
+                <img src="https://a.espncdn.com/i/teamlogos/countries/500/fra.png" alt="FRA" style={{ width: 22, height: 22, objectFit: 'contain' }} />
+              </div>
+            </div>
+
+            <div>
+              <p style={{ fontFamily: 'Inter', fontWeight: 600, fontSize: '0.6rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--grey-light)', marginBottom: 6 }}>Man of the Match</p>
+              <CustomDropdown
+                value={motm} onChange={setMotm} options={allPlayers}
+                leadingIcon={<div style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--turf)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Inter', fontWeight: 800, fontSize: '0.6rem', color: 'var(--ink)', flexShrink: 0 }}>{initials(motm)}</div>}
+              />
+            </div>
+          </div>
+
+          {/* Goal Scorer */}
+          <div style={{ background: 'var(--white)', border: '1.5px solid var(--chalk)', borderRadius: 6, padding: '1.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+              <p style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: '1.05rem', color: 'var(--ink)' }}>Goal scorer</p>
+              <span className="h-mono" style={{ fontSize: '0.72rem', color: 'var(--turf-deep)', fontWeight: 700 }}>+2 pts</span>
+            </div>
+            <p className="h-body" style={{ fontSize: '0.85rem', color: 'var(--grey)', marginBottom: '1.1rem' }}>
+              Predict which player will score a goal.
+            </p>
+
+            <div style={{ marginBottom: '0.6rem' }}>
+              <CustomDropdown
+                value={scorer} onChange={setScorer} options={allPlayers}
+                leadingIcon={<div style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--turf)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Inter', fontWeight: 800, fontSize: '0.62rem', color: 'var(--ink)', flexShrink: 0 }}>{initials(scorer)}</div>}
+              />
+            </div>
+          </div>
+
+          {/* Assister */}
+          <div style={{ background: 'var(--white)', border: '1.5px solid var(--chalk)', borderRadius: 6, padding: '1.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+              <p style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: '1.05rem', color: 'var(--ink)' }}>Assister</p>
+              <span className="h-mono" style={{ fontSize: '0.72rem', color: 'var(--turf-deep)', fontWeight: 700 }}>+1 pt</span>
+            </div>
+            <p className="h-body" style={{ fontSize: '0.85rem', color: 'var(--grey)', marginBottom: '1.1rem' }}>
+              Predict which player will provide an assist.
+            </p>
+
+            <div>
+              <CustomDropdown
+                value={assister} onChange={setAssister} options={allPlayers}
+                leadingIcon={<div style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--turf)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Inter', fontWeight: 800, fontSize: '0.62rem', color: 'var(--ink)', flexShrink: 0 }}>{initials(assister)}</div>}
+              />
+            </div>
+          </div>
+        </div>
+      </section>
 
     </main>
   );
