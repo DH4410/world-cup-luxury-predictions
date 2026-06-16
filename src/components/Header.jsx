@@ -8,6 +8,7 @@ const NAV = [
   { to: '/',            label: 'Home' },
   { to: '/predict',     label: 'Predict' },
   { to: '/predictions', label: 'All Predictions' },
+  { to: '/insights',    label: 'Insights' },
   { to: '/groups',      label: 'Groups' },
   { to: '/schedule',    label: 'Schedule' },
   { to: '/rooms',       label: 'Rooms' },

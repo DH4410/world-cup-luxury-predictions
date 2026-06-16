@@ -126,6 +126,38 @@ export async function fetchStandings() {
   return out;
 }
 
+// Build top-scorers table by parsing every game's home/away scorers
+export async function fetchTopScorers(limit = 20) {
+  const [games, teams] = await Promise.all([fetchGames(), fetchTeams()]);
+  const byId = Object.fromEntries(teams.map(t => [t.id, t]));
+  const tally = new Map(); // key: name|teamId
+  for (const g of games) {
+    const homeT = byId[g.home_team_id];
+    const awayT = byId[g.away_team_id];
+    for (const raw of parseScorers(g.home_scorers)) addGoal(tally, raw, homeT);
+    for (const raw of parseScorers(g.away_scorers)) addGoal(tally, raw, awayT);
+  }
+  const rows = Array.from(tally.values())
+    .sort((a, b) => b.goals - a.goals || a.name.localeCompare(b.name))
+    .slice(0, limit);
+  return rows;
+}
+
+function addGoal(map, raw, team) {
+  // strip trailing time like "27'" or "90'+5'" and tags like "(p)"
+  const name = String(raw)
+    .replace(/\s*\d+'\s*(\+\d+'?)?\s*$/, '')
+    .replace(/\s*\(p\)\s*$/i, '')
+    .replace(/\s*\(og\)\s*$/i, '')
+    .trim();
+  if (!name) return;
+  const key = `${name}|${team?.id || ''}`;
+  const cur = map.get(key) || { name, team, goals: 0, penalties: 0 };
+  cur.goals += 1;
+  if (/\(p\)/i.test(raw)) cur.penalties += 1;
+  map.set(key, cur);
+}
+
 export async function fetchGroupsByLetter() {
   const teams = await fetchTeams();
   const out = {};

@@ -79,3 +79,18 @@ export async function fetchNextFeatured() {
   const list = await fetchUpcoming(1);
   return list[0] || null;
 }
+
+export async function fetchNews(limit = 8) {
+  const res = await fetch('https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/news');
+  if (!res.ok) throw new Error(`ESPN news ${res.status}`);
+  const data = await res.json();
+  return (data.articles || []).slice(0, limit).map(a => ({
+    id: a.dataSourceIdentifier || a.headline,
+    headline: a.headline,
+    description: a.description,
+    image: a.images?.[0]?.url,
+    link: a.links?.web?.href,
+    published: a.published,
+    type: a.type,
+  }));
+}

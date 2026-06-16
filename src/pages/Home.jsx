@@ -1,10 +1,8 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, ChevronRight, Target, Trophy, BarChart3 } from 'lucide-react';
+import { ArrowRight, ChevronRight, Target, Trophy, BarChart3, Newspaper } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useState, useEffect, useMemo } from 'react';
-import { PLAYERS } from '../data/mockData';
 import { fetchUpcoming, fetchNextFeatured } from '../lib/espnApi';
-import CustomDropdown from '../components/CustomDropdown';
 
 const HERO_IMAGES = [
   'https://images.unsplash.com/photo-1551958219-acbc608c6377?w=2000&q=80',
@@ -64,7 +62,7 @@ function ScoreboardCountdown({ target }) {
       backdropFilter: 'blur(8px)',
       boxShadow: '0 12px 40px rgba(20,32,26,0.25)',
     }}>
-      <div style={{ padding: '0.9rem 1.1rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', background: 'rgba(79,110,27,0.65)' }}>
+      <div style={{ padding: '0.9rem 1.1rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', background: 'rgba(182,232,75,0.18)', borderRight: '1px solid rgba(245,248,236,0.12)' }}>
         <span style={{ fontFamily: 'Inter', fontWeight: 600, fontSize: '0.66rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--turf)' }}>Kickoff in</span>
         <span style={{ fontFamily: 'Inter', fontWeight: 500, fontSize: '0.62rem', color: 'rgba(245,248,236,0.65)', marginTop: 3 }}>Next fixture</span>
       </div>
@@ -92,12 +90,6 @@ export default function Home() {
   const [featured, setFeatured] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const allPlayers = useMemo(() => Object.values(PLAYERS).flat(), []);
-  const [homeScore, setHomeScore] = useState(2);
-  const [awayScore, setAwayScore] = useState(1);
-  const [motm, setMotm] = useState('Kylian Mbappé');
-  const [scorer, setScorer] = useState('Lionel Messi');
-  const [assister, setAssister] = useState('Lamine Yamal');
   const heroBg = useMemo(() => pick(HERO_IMAGES), []);
   const pitchBg = useMemo(() => pick(PITCH_IMAGES), []);
 
@@ -130,20 +122,20 @@ export default function Home() {
       <section style={{
         position: 'relative', overflow: 'hidden',
         borderBottom: '1.5px solid var(--chalk)',
-        minHeight: 620,
+        minHeight: 640,
       }}>
-        {/* Blurred photographic background */}
+        {/* Full-bleed sharp photographic background */}
         <div style={{
           position: 'absolute', inset: 0,
           backgroundImage: `url(${heroBg})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
-          filter: 'blur(14px) saturate(1.05)',
-          transform: 'scale(1.1)',
+          transform: 'scale(1.02)',
         }} />
+        {/* Subtle global darken for legibility on the right side */}
         <div style={{
           position: 'absolute', inset: 0,
-          background: 'linear-gradient(105deg, rgba(245,248,236,0.96) 0%, rgba(245,248,236,0.86) 45%, rgba(245,248,236,0.55) 75%, rgba(245,248,236,0.25) 100%)',
+          background: 'linear-gradient(115deg, rgba(20,32,26,0.18) 0%, rgba(20,32,26,0.05) 60%, rgba(20,32,26,0.42) 100%)',
         }} />
 
         <div style={{
@@ -152,7 +144,17 @@ export default function Home() {
           padding: '4.5rem 1.5rem 4rem',
           display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: '2.5rem', alignItems: 'center',
         }}>
-          <div>
+          {/* Frosted-glass panel — blurs ONLY behind the text column */}
+          <div style={{
+            position: 'relative',
+            background: 'rgba(245,248,236,0.78)',
+            backdropFilter: 'blur(22px) saturate(1.1)',
+            WebkitBackdropFilter: 'blur(22px) saturate(1.1)',
+            border: '1px solid rgba(255,255,255,0.6)',
+            borderRadius: 16,
+            padding: '2.25rem 2.25rem 2rem',
+            boxShadow: '0 30px 60px rgba(20,32,26,0.18)',
+          }}>
             <div className="anim-fade-up" style={{ fontFamily: 'Inter', fontWeight: 600, fontSize: '0.72rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--turf-deep)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ display: 'inline-block', width: 28, height: 1.5, background: 'var(--turf-deep)' }} />
               FIFA World Cup 2026
@@ -234,26 +236,50 @@ export default function Home() {
         </div>
       </section>
 
-      {/* PREDICT EARN COMPETE */}
+      {/* PREDICT EARN COMPETE + WHAT YOU CAN PREDICT */}
       <section style={{ maxWidth: 1440, margin: '0 auto', padding: '2.5rem 1.5rem 1rem' }}>
-        <div style={{ background: 'var(--white)', border: '1.5px solid var(--chalk)', borderRadius: 6, padding: '2rem 2.25rem' }}>
-          <h2 style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: '1rem', letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink)', textAlign: 'center', marginBottom: '1.75rem' }}>
-            Predict. Earn. Compete.
-          </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.75rem' }}>
+        <div style={{ background: 'var(--white)', border: '1.5px solid var(--chalk)', borderRadius: 10, overflow: 'hidden' }}>
+          <div style={{ padding: '1.75rem 2.25rem 1.5rem' }}>
+            <h2 style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: '1rem', letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink)', textAlign: 'center', marginBottom: '1.5rem' }}>
+              Predict. Earn. Compete.
+            </h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.75rem' }}>
+              {[
+                { icon: Target,    title: 'Make predictions', desc: 'Predict on scores, goal scorers, assisters and more.' },
+                { icon: Trophy,    title: 'Earn points',      desc: 'Get points for correct predictions and bonuses.' },
+                { icon: BarChart3, title: 'Climb the leaderboard', desc: 'Compete with others and win exciting rewards.' },
+              ].map(({ icon: Icon, title, desc }) => (
+                <div key={title} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.9rem' }}>
+                  <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--lime-faint)', border: '1.5px solid var(--turf)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Icon size={20} strokeWidth={2.2} color="var(--ink)" />
+                  </div>
+                  <div>
+                    <p style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: '1rem', color: 'var(--ink)', marginBottom: 4 }}>{title}</p>
+                    <p className="h-body" style={{ fontSize: '0.86rem', color: 'var(--grey)' }}>{desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Prediction types strip */}
+          <div style={{
+            display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)',
+            background: 'var(--surface)', borderTop: '1.5px solid var(--chalk)',
+          }}>
             {[
-              { icon: Target,    title: 'Make predictions', desc: 'Predict on scores, goal scorers, assisters and more.' },
-              { icon: Trophy,    title: 'Earn points',      desc: 'Get points for correct predictions and bonuses.' },
-              { icon: BarChart3, title: 'Climb the leaderboard', desc: 'Compete with others and win exciting rewards.' },
-            ].map(({ icon: Icon, title, desc }) => (
-              <div key={title} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.9rem' }}>
-                <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--lime-faint)', border: '1.5px solid var(--turf)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Icon size={20} strokeWidth={2.2} color="var(--turf-deep)" />
-                </div>
-                <div>
-                  <p style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: '1rem', color: 'var(--ink)', marginBottom: 4 }}>{title}</p>
-                  <p className="h-body" style={{ fontSize: '0.86rem', color: 'var(--grey)' }}>{desc}</p>
-                </div>
+              { label: 'Exact score',        pts: '+5 pts' },
+              { label: 'Correct outcome',    pts: '+2 pts' },
+              { label: 'Goal scorer',        pts: '+2 pts' },
+              { label: 'Assister / MOTM',    pts: '+1 pt'  },
+            ].map((c, i) => (
+              <div key={c.label} style={{
+                padding: '0.95rem 1rem',
+                borderRight: i < 3 ? '1.5px solid var(--chalk)' : 'none',
+                textAlign: 'center',
+              }}>
+                <p className="h-mono" style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--ink)', letterSpacing: '0.04em' }}>{c.pts}</p>
+                <p style={{ fontFamily: 'Inter', fontWeight: 600, fontSize: '0.78rem', color: 'var(--grey)', marginTop: 2 }}>{c.label}</p>
               </div>
             ))}
           </div>
@@ -394,7 +420,7 @@ export default function Home() {
               }} />
               <div style={{
                 position: 'absolute', inset: 0,
-                background: 'linear-gradient(135deg, rgba(20,32,26,0.78) 0%, rgba(79,110,27,0.5) 100%)',
+                background: 'linear-gradient(135deg, rgba(20,32,26,0.85) 0%, rgba(20,32,26,0.55) 100%)',
               }} />
               <div style={{ position: 'relative' }}>
                 <span style={{ fontFamily: 'Inter', fontWeight: 600, fontSize: '0.68rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--turf)' }}>Exclusive rewards</span>
@@ -413,85 +439,6 @@ export default function Home() {
             </div>
           </div>
 
-        </div>
-      </section>
-
-      {/* WHAT CAN YOU PREDICT */}
-      <section style={{ maxWidth: 1440, margin: '0 auto', padding: '3rem 1.5rem 5rem' }}>
-        <h2 style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: 'clamp(1.5rem, 3.5vw, 2rem)', textAlign: 'center', color: 'var(--ink)', marginBottom: '2rem' }}>
-          What can you predict?
-        </h2>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '1.25rem' }}>
-
-          {/* Score / MOTM */}
-          <div style={{ background: 'var(--white)', border: '1.5px solid var(--chalk)', borderRadius: 6, padding: '1.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
-              <p style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: '1.05rem', color: 'var(--ink)' }}>Score / MOTM</p>
-              <span className="h-mono" style={{ fontSize: '0.72rem', color: 'var(--turf-deep)', fontWeight: 700 }}>+5 pts</span>
-            </div>
-            <p className="h-body" style={{ fontSize: '0.85rem', color: 'var(--grey)', marginBottom: '1.1rem' }}>
-              Predict the full-time score and the Man of the Match.
-            </p>
-
-            <div style={{ background: 'var(--ink)', borderRadius: 4, padding: '0.85rem 1rem', display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: '0.5rem', marginBottom: '0.6rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <img src="https://a.espncdn.com/i/teamlogos/countries/500/arg.png" alt="ARG" style={{ width: 22, height: 22, objectFit: 'contain' }} />
-                <input type="number" min="0" max="20" value={homeScore} onChange={e => setHomeScore(+e.target.value)} className="h-mono"
-                  style={{ width: 44, textAlign: 'center', fontSize: '1.6rem', fontWeight: 700, background: 'transparent', border: 'none', outline: 'none', color: 'var(--turf)' }} />
-              </div>
-              <span className="h-mono" style={{ fontSize: '1.3rem', color: 'rgba(245,248,236,0.4)' }}>:</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end' }}>
-                <input type="number" min="0" max="20" value={awayScore} onChange={e => setAwayScore(+e.target.value)} className="h-mono"
-                  style={{ width: 44, textAlign: 'center', fontSize: '1.6rem', fontWeight: 700, background: 'transparent', border: 'none', outline: 'none', color: 'var(--turf)' }} />
-                <img src="https://a.espncdn.com/i/teamlogos/countries/500/fra.png" alt="FRA" style={{ width: 22, height: 22, objectFit: 'contain' }} />
-              </div>
-            </div>
-
-            <div>
-              <p style={{ fontFamily: 'Inter', fontWeight: 600, fontSize: '0.6rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--grey-light)', marginBottom: 6 }}>Man of the Match</p>
-              <CustomDropdown
-                value={motm} onChange={setMotm} options={allPlayers}
-                leadingIcon={<div style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--turf)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Inter', fontWeight: 800, fontSize: '0.6rem', color: 'var(--ink)', flexShrink: 0 }}>{initials(motm)}</div>}
-              />
-            </div>
-          </div>
-
-          {/* Goal Scorer */}
-          <div style={{ background: 'var(--white)', border: '1.5px solid var(--chalk)', borderRadius: 6, padding: '1.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
-              <p style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: '1.05rem', color: 'var(--ink)' }}>Goal scorer</p>
-              <span className="h-mono" style={{ fontSize: '0.72rem', color: 'var(--turf-deep)', fontWeight: 700 }}>+2 pts</span>
-            </div>
-            <p className="h-body" style={{ fontSize: '0.85rem', color: 'var(--grey)', marginBottom: '1.1rem' }}>
-              Predict which player will score a goal.
-            </p>
-
-            <div style={{ marginBottom: '0.6rem' }}>
-              <CustomDropdown
-                value={scorer} onChange={setScorer} options={allPlayers}
-                leadingIcon={<div style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--turf)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Inter', fontWeight: 800, fontSize: '0.62rem', color: 'var(--ink)', flexShrink: 0 }}>{initials(scorer)}</div>}
-              />
-            </div>
-          </div>
-
-          {/* Assister */}
-          <div style={{ background: 'var(--white)', border: '1.5px solid var(--chalk)', borderRadius: 6, padding: '1.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
-              <p style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: '1.05rem', color: 'var(--ink)' }}>Assister</p>
-              <span className="h-mono" style={{ fontSize: '0.72rem', color: 'var(--turf-deep)', fontWeight: 700 }}>+1 pt</span>
-            </div>
-            <p className="h-body" style={{ fontSize: '0.85rem', color: 'var(--grey)', marginBottom: '1.1rem' }}>
-              Predict which player will provide an assist.
-            </p>
-
-            <div>
-              <CustomDropdown
-                value={assister} onChange={setAssister} options={allPlayers}
-                leadingIcon={<div style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--turf)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Inter', fontWeight: 800, fontSize: '0.62rem', color: 'var(--ink)', flexShrink: 0 }}>{initials(assister)}</div>}
-              />
-            </div>
-          </div>
         </div>
       </section>
 
