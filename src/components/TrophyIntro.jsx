@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 const STORAGE_KEY = 'matchday.introSeenV2';
 const FADE_DURATION = 2.4;   // seconds of volume fade at end
-const BASE_VOLUME   = 0.5;   // default volume — 50% of full
-const CLOSE_DURATION = 1200; // ms — matches CSS opacity transition
+const BASE_VOLUME = 0.5;     // default volume, 50% of full
+const CLOSE_DURATION = 1200; // ms, matches CSS opacity transition
 
 export default function TrophyIntro({ force = false }) {
   const [show, setShow] = useState(() => {
@@ -12,16 +12,16 @@ export default function TrophyIntro({ force = false }) {
     try { return !localStorage.getItem(STORAGE_KEY); } catch { return true; }
   });
   const [closing, setClosing] = useState(false);
-  const [needsTapToPlay, setNeedsTapToPlay] = useState(false);
   const videoRef = useRef(null);
 
-  function handleSkip() {
+  const handleSkip = useCallback(() => {
     if (closing) return;
     setClosing(true);
-    try { localStorage.setItem(STORAGE_KEY, '1'); } catch {}
+    try { localStorage.setItem(STORAGE_KEY, '1'); } catch {
+      // localStorage may be unavailable in private or embedded contexts.
+    }
     const v = videoRef.current;
     if (v) {
-      // Smooth audio ramp synced to the visual fade
       const startVol = v.volume;
       const t0 = performance.now();
       const fade = () => {
@@ -33,39 +33,43 @@ export default function TrophyIntro({ force = false }) {
       fade();
     }
     setTimeout(() => setShow(false), CLOSE_DURATION);
-  }
+  }, [closing]);
 
   useEffect(() => {
     if (!show) return;
     const v = videoRef.current;
     if (!v) return;
 
-    v.volume = BASE_VOLUME;
-    const tryPlay = async () => {
+    const forceSoundOn = () => {
+      if (!videoRef.current) return;
+      videoRef.current.muted = false;
+      videoRef.current.defaultMuted = false;
+      videoRef.current.volume = BASE_VOLUME;
+    };
+
+    const tryPlayWithSound = async () => {
+      forceSoundOn();
       try {
         await v.play();
       } catch {
-        // Browser blocked unmuted autoplay — start muted, then auto-restore
-        // sound the moment the user interacts anywhere on the page.
-        v.muted = true;
-        try { await v.play(); }
-        catch { setNeedsTapToPlay(true); return; }
-        const unmute = () => {
-          if (!videoRef.current) return;
-          videoRef.current.muted = false;
-          videoRef.current.volume = BASE_VOLUME;
+        const retryWithSound = () => {
+          forceSoundOn();
+          videoRef.current?.play().catch(() => {});
         };
-        window.addEventListener('pointerdown', unmute, { once: true });
-        window.addEventListener('keydown', unmute, { once: true });
+
+        requestAnimationFrame(retryWithSound);
+        v.addEventListener('canplay', retryWithSound, { once: true });
+        v.addEventListener('loadeddata', retryWithSound, { once: true });
       }
     };
-    tryPlay();
+
+    tryPlayWithSound();
 
     const onTime = () => {
       if (!v.duration) return;
       const remain = v.duration - v.currentTime;
       if (remain <= FADE_DURATION && remain > 0) {
-        const k = remain / FADE_DURATION;          // 1 → 0
+        const k = remain / FADE_DURATION;
         v.volume = Math.max(0, BASE_VOLUME * k);
       }
     };
@@ -77,16 +81,7 @@ export default function TrophyIntro({ force = false }) {
       v.removeEventListener('timeupdate', onTime);
       v.removeEventListener('ended', onEnded);
     };
-  }, [show]);
-
-  function tapToPlay() {
-    const v = videoRef.current;
-    if (!v) return;
-    v.muted = false;
-    v.volume = BASE_VOLUME;
-    setNeedsTapToPlay(false);
-    v.play().catch(() => {});
-  }
+  }, [handleSkip, show]);
 
   if (!show) return null;
 
@@ -96,7 +91,6 @@ export default function TrophyIntro({ force = false }) {
         position: 'fixed', inset: 0, zIndex: 9999,
         background: '#000',
         opacity: closing ? 0 : 1,
-        // Ease out on close so the outro feels intentional, not abrupt
         transition: 'opacity 1.2s cubic-bezier(0.22, 0.61, 0.36, 1)',
         overflow: 'hidden',
         pointerEvents: closing ? 'none' : 'auto',
@@ -107,26 +101,24 @@ export default function TrophyIntro({ force = false }) {
         src="/intro.mp4"
         playsInline
         autoPlay
+        muted={false}
         preload="auto"
         style={{
           position: 'absolute', inset: 0,
           width: '100%', height: '100%',
           objectFit: 'cover',
           background: '#000',
-          // Subtle dim + scale on close — softens the cut to the main page
           transform: closing ? 'scale(1.04)' : 'scale(1)',
           transition: 'transform 1.2s cubic-bezier(0.22, 0.61, 0.36, 1)',
         }}
       />
 
-      {/* Soft top/bottom vignette so chrome reads cleanly */}
       <div style={{
         position: 'absolute', inset: 0,
         background: 'linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 18%, rgba(0,0,0,0) 78%, rgba(0,0,0,0.65) 100%)',
         pointerEvents: 'none',
       }} />
 
-      {/* Top bar — brand + skip */}
       <div style={{
         position: 'absolute', top: 0, left: 0, right: 0,
         padding: '1.4rem 2rem',
@@ -155,27 +147,6 @@ export default function TrophyIntro({ force = false }) {
         </button>
       </div>
 
-      {/* If autoplay was blocked entirely — show a big tap-to-play */}
-      {needsTapToPlay && (
-        <button onClick={tapToPlay} style={{
-          position: 'absolute', inset: 0, margin: 'auto',
-          width: 'fit-content', height: 'fit-content',
-          background: 'rgba(20,32,26,0.65)',
-          border: '1.5px solid rgba(255,255,255,0.25)',
-          color: '#fff', padding: '1.1rem 2rem',
-          borderRadius: 999, cursor: 'pointer',
-          fontFamily: 'Inter, sans-serif', fontWeight: 800, fontSize: '1rem',
-          backdropFilter: 'blur(12px)', display: 'inline-flex', alignItems: 'center', gap: 10,
-          zIndex: 3,
-        }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="#fff">
-            <path d="M8 5v14l11-7z" />
-          </svg>
-          Tap to play intro
-        </button>
-      )}
-
-      {/* Bottom CTA — kept low-key so the video carries the moment */}
       <div style={{
         position: 'absolute', left: 0, right: 0, bottom: 0,
         padding: '0 2rem 2rem', zIndex: 2,
